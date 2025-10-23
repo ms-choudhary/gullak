@@ -38,6 +38,36 @@ func handleIndex(c echo.Context) error {
 	})
 }
 
+func handleListCategories(c echo.Context) error {
+	m := c.Get("app").(*App)
+
+	categories, err := m.queries.ListCategories(context.Background())
+	if err != nil {
+		m.log.Error("Error retrieving categories", "error", err)
+		return c.JSON(http.StatusInternalServerError, Resp{Error: "Error retrieving categories"})
+	}
+
+	return c.JSON(http.StatusOK, Resp{
+		Data:    categories,
+		Message: "Categories retrieved",
+	})
+}
+
+func handleListEnvelopes(c echo.Context) error {
+	m := c.Get("app").(*App)
+
+	envelopes, err := m.queries.ListEnvelopes(context.Background())
+	if err != nil {
+		m.log.Error("Error retrieving envelopes", "error", err)
+		return c.JSON(http.StatusInternalServerError, Resp{Error: "Error retrieving envelopes"})
+	}
+
+	return c.JSON(http.StatusOK, Resp{
+		Data:    envelopes,
+		Message: "Envelopes retrieved",
+	})
+}
+
 func handleCreateTransaction(c echo.Context) error {
 	m := c.Get("app").(*App)
 	var input models.Item
@@ -61,6 +91,7 @@ func handleCreateTransaction(c echo.Context) error {
 	}
 
 	input.Category = category
+	input.Envelope = "default"
 
 	transactions := models.Transactions{
 		Transactions: []models.Item{input},
@@ -216,6 +247,7 @@ func handleUpdateTransaction(c echo.Context) error {
 		Amount:          input.Amount,
 		Currency:        input.Currency,
 		Category:        input.Category,
+		Envelope:        input.Envelope,
 		Description:     input.Description,
 		Confirm:         input.Confirm,
 		TransactionDate: transactionDate,

@@ -27,8 +27,15 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/utils/utils';
 import { getCategoryColor } from '@/utils/common';
+import { useTransactionStore } from '@/stores/transactions';
 
-const categories = ['food', 'transport', 'entertainment', 'shopping', 'bills', 'stay', 'groceries', 'gift', 'misc'];
+// const categories = ['food', 'transport', 'entertainment', 'shopping', 'bills', 'stay', 'groceries', 'gift', 'misc'];
+
+const addingNewCategory = ref(false);
+const addingNewEnvelope = ref(false);
+const categories = ref<Array<string>>([])
+const envelopes = ref<Array<string>>([])
+const transactionStore = useTransactionStore();
 
 const props = defineProps({
   transactions: {
@@ -62,13 +69,17 @@ watch(() => props.transactions, (newTransactions) => {
         transaction_date: parseIsoToDate(updatedTransaction.transaction_date)
       };
     } else {
+			addingNewCategory.value = null;
+			addingNewEnvelope.value = null;
       localEditingTransaction.value = null;
     }
   }
 }, { deep: true });
 
+const editTransaction = async (transaction) => {
+  categories.value = await transactionStore.fetchCategories();
+  envelopes.value = await transactionStore.fetchEnvelopes();
 
-const editTransaction = (transaction) => {
   localEditingTransaction.value = {
     ...transaction,
     transaction_date: parseIsoToDate(transaction.transaction_date)
@@ -77,6 +88,8 @@ const editTransaction = (transaction) => {
 };
 
 const cancelEdit = () => {
+	addingNewCategory.value = null;
+	addingNewEnvelope.value = null;
   localEditingTransaction.value = null;
 };
 
@@ -86,6 +99,9 @@ const confirmTransaction = (transaction) => {
   const formattedDate = isoDate.toISOString().split('T')[0]; // Splits the ISO string by 'T' and takes the first part (date)
   transactionToConfirm.transaction_date = formattedDate;
   props.onConfirm(transactionToConfirm);
+
+	addingNewCategory.value = null;
+	addingNewEnvelope.value = null;
   localEditingTransaction.value = null;
 };
 
@@ -98,6 +114,9 @@ const saveTransaction = () => {
   if (!localEditingTransaction.value) return;
   localEditingTransaction.value.transaction_date = localEditingTransaction.value.transaction_date.toString();
   props.onSave(localEditingTransaction.value);
+	
+	addingNewCategory.value = null;
+	addingNewEnvelope.value = null;
   localEditingTransaction.value = null;
 };
 </script>
@@ -110,6 +129,7 @@ const saveTransaction = () => {
         <TableHead>Date</TableHead>
         <TableHead>Amount</TableHead>
         <TableHead>Category</TableHead>
+        <TableHead>Envelope</TableHead>
         <TableHead>Description</TableHead>
         <TableHead>Actions</TableHead>
       </TableRow>
@@ -139,8 +159,10 @@ const saveTransaction = () => {
           <span v-else>{{ transaction.currency }}{{ transaction.amount.toFixed(2) }}</span>
         </TableCell>
         <TableCell>
+					<Input class="w-full" v-if="localEditingTransaction && localEditingTransaction.id === transaction.id && addingNewCategory"
+					            v-model="localEditingTransaction.category" />
     			<Select 
-    			  v-if="localEditingTransaction && localEditingTransaction.id === transaction.id"
+    			  v-else-if="localEditingTransaction && localEditingTransaction.id === transaction.id"
     			  v-model="localEditingTransaction.category"
     			>
     			  <SelectTrigger class="w-full">
@@ -156,10 +178,45 @@ const saveTransaction = () => {
     			      >
     			        {{ category }}
     			      </SelectItem>
+          			<div class="p-2 border-t mt-2">
+          			  <Button variant="ghost" size="sm" @click.stop="addingNewCategory = true">
+          			    + Add new category
+          			  </Button>
+          			</div>
     			    </SelectGroup>
     			  </SelectContent>
     			</Select>
           <Badge :class="getCategoryColor(transaction.category)" v-else>{{ transaction.category }}</Badge>
+        </TableCell>
+        <TableCell>
+					<Input class="w-full" v-if="localEditingTransaction && localEditingTransaction.id === transaction.id && addingNewEnvelope"
+					            v-model="localEditingTransaction.envelope" />
+    			<Select 
+    			  v-else-if="localEditingTransaction && localEditingTransaction.id === transaction.id"
+    			  v-model="localEditingTransaction.envelope"
+    			>
+    			  <SelectTrigger class="w-full">
+    			    <SelectValue placeholder="Select envelope" />
+    			  </SelectTrigger>
+    			  <SelectContent>
+    			    <SelectGroup>
+    			      <SelectLabel>Envelopes</SelectLabel>
+    			      <SelectItem 
+    			        v-for="envelope in envelopes" 
+    			        :key="envelope" 
+    			        :value="envelope"
+    			      >
+    			        {{ envelope }}
+    			      </SelectItem>
+          			<div class="p-2 border-t mt-2">
+          			  <Button variant="ghost" size="sm" @click.stop="addingNewEnvelope = true">
+          			    + Add new envelope
+          			  </Button>
+          			</div>
+    			    </SelectGroup>
+    			  </SelectContent>
+    			</Select>
+          <Badge :class="bg-gray-500" v-else>{{ transaction.envelope }}</Badge>
         </TableCell>
         <TableCell>
           <Input class="w-3/4" v-if="localEditingTransaction && localEditingTransaction.id === transaction.id"

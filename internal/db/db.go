@@ -39,6 +39,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getTransactionByDescriptionStmt, err = db.PrepareContext(ctx, getTransactionByDescription); err != nil {
 		return nil, fmt.Errorf("error preparing query GetTransactionByDescription: %w", err)
 	}
+	if q.listCategoriesStmt, err = db.PrepareContext(ctx, listCategories); err != nil {
+		return nil, fmt.Errorf("error preparing query ListCategories: %w", err)
+	}
+	if q.listEnvelopesStmt, err = db.PrepareContext(ctx, listEnvelopes); err != nil {
+		return nil, fmt.Errorf("error preparing query ListEnvelopes: %w", err)
+	}
 	if q.listTransactionsStmt, err = db.PrepareContext(ctx, listTransactions); err != nil {
 		return nil, fmt.Errorf("error preparing query ListTransactions: %w", err)
 	}
@@ -79,6 +85,16 @@ func (q *Queries) Close() error {
 	if q.getTransactionByDescriptionStmt != nil {
 		if cerr := q.getTransactionByDescriptionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getTransactionByDescriptionStmt: %w", cerr)
+		}
+	}
+	if q.listCategoriesStmt != nil {
+		if cerr := q.listCategoriesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listCategoriesStmt: %w", cerr)
+		}
+	}
+	if q.listEnvelopesStmt != nil {
+		if cerr := q.listEnvelopesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listEnvelopesStmt: %w", cerr)
 		}
 	}
 	if q.listTransactionsStmt != nil {
@@ -145,6 +161,8 @@ type Queries struct {
 	deleteTransactionStmt           *sql.Stmt
 	getTransactionStmt              *sql.Stmt
 	getTransactionByDescriptionStmt *sql.Stmt
+	listCategoriesStmt              *sql.Stmt
+	listEnvelopesStmt               *sql.Stmt
 	listTransactionsStmt            *sql.Stmt
 	monthlySpendingSummaryStmt      *sql.Stmt
 	topExpenseCategoriesStmt        *sql.Stmt
@@ -160,6 +178,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteTransactionStmt:           q.deleteTransactionStmt,
 		getTransactionStmt:              q.getTransactionStmt,
 		getTransactionByDescriptionStmt: q.getTransactionByDescriptionStmt,
+		listCategoriesStmt:              q.listCategoriesStmt,
+		listEnvelopesStmt:               q.listEnvelopesStmt,
 		listTransactionsStmt:            q.listTransactionsStmt,
 		monthlySpendingSummaryStmt:      q.monthlySpendingSummaryStmt,
 		topExpenseCategoriesStmt:        q.topExpenseCategoriesStmt,

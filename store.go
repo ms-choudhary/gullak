@@ -83,6 +83,7 @@ func (a *App) Save(transactions models.Transactions) ([]db.Transaction, error) {
 			Amount:          item.Amount,
 			Currency:        item.Currency,
 			Category:        item.Category,
+			Envelope:        item.Envelope,
 			Description:     item.Description,
 		}
 
@@ -108,6 +109,7 @@ func (a *App) Get(id int64) (models.Item, error) {
 		Currency:        transaction.Currency,
 		Amount:          transaction.Amount,
 		Category:        transaction.Category,
+		Envelope:        transaction.Envelope,
 		Description:     transaction.Description,
 		Confirm:         transaction.Confirm,
 	}, nil
@@ -128,6 +130,7 @@ func (a *App) Update(id int64, transaction models.Item) error {
 		Amount:      transaction.Amount,
 		Currency:    transaction.Currency,
 		Category:    transaction.Category,
+		Envelope:    transaction.Envelope,
 		Description: transaction.Description,
 		Confirm:     transaction.Confirm,
 		ID:          id,

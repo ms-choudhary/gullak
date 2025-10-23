@@ -1,7 +1,7 @@
 -- name: CreateTransaction :many
 -- Inserts a new transaction into the database.
-INSERT INTO transactions (created_at, transaction_date, amount, currency, category, description, confirm)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO transactions (created_at, transaction_date, amount, currency, category, envelope, description, confirm)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: ListTransactions :many
@@ -11,7 +11,7 @@ FROM transactions
 WHERE (:confirm IS NULL OR confirm = :confirm)
   AND (:start_date IS NULL OR transaction_date >= :start_date)
   AND (:end_date IS NULL OR transaction_date <= :end_date)
-ORDER BY transaction_date DESC, created_at DESC;
+ORDER BY amount DESC;
 
 -- name: GetTransaction :one
 -- Retrieves a single transaction by ID.
@@ -20,7 +20,7 @@ SELECT * FROM transactions WHERE id = ?;
 -- name: UpdateTransaction :exec
 -- Updates a transaction by ID.
 UPDATE transactions
-SET amount = ?, currency = ?, category = ?, description = ?, confirm = ?, transaction_date = ?
+SET amount = ?, currency = ?, category = ?, envelope = ?, description = ?, confirm = ?, transaction_date = ?
 WHERE id = ?;
 
 -- name: DeleteTransaction :exec
@@ -65,3 +65,16 @@ ORDER BY year DESC, month DESC, total_spent DESC;
 -- name: GetTransactionByDescription :one
 -- Retrieves transaction with description.
 SELECT * FROM transactions WHERE description = ? LIMIT 1;
+
+-- name: ListCategories :many
+-- Retrieves all transaction categories.
+SELECT distinct category
+FROM transactions
+WHERE category != '';
+
+-- name: ListEnvelopes :many
+-- Retrieves envelopes.
+SELECT distinct envelope
+FROM transactions
+WHERE envelope != ''
+ORDER BY transaction_date DESC;

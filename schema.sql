@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     currency TEXT NOT NULL,
     amount FLOAT NOT NULL,
     category TEXT NOT NULL,
+    envelope TEXT NOT NULL DEFAULT 'default',
     description TEXT NOT NULL DEFAULT '',
     confirm BOOLEAN NOT NULL DEFAULT false
 );

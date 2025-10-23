@@ -6,6 +6,7 @@ import { CurveType } from '@unovis/ts';
 import { showToast } from '@/utils/common'
 import DateRangePicker from '@/components/DateRangePicker.vue';
 import TransactionTable from '@/components/TransactionTable.vue';
+import Filter from '@/components/Filter.vue';
 import { useTransactionStore } from '@/stores/transactions';
 
 const isMounted = ref(false);
@@ -73,6 +74,7 @@ watch(dateRange, fetchData, { deep: true });
     <section class="p-6">
         <div class="flex flex-wrap items-center justify-between py-4">
             <h1 class="text-2xl font-semibold text-gray-800 flex-1">Dashboard Overview</h1>
+            <Filter/>
             <DateRangePicker v-model="dateRange" @update:dateRange="handleDateRangeUpdate" class="flex-initial" />
         </div>
         <div class="charts mt-4 flex flex-wrap justify-center items-stretch">

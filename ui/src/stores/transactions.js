@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import axios from 'axios'
 
 const TRANSACTIONS_BASE_URL = '/api/transactions'
+const CATEGORIES_BASE_URL = '/api/categories'
+const ENVELOPES_BASE_URL = '/api/envelopes'
 const REPORTS_BASE_URL = '/api/reports'
 
 export const useTransactionStore = defineStore('transaction', () => {
@@ -19,6 +21,26 @@ export const useTransactionStore = defineStore('transaction', () => {
         params.end_date = endDate
       }
       const response = await axios.get(TRANSACTIONS_BASE_URL, { params })
+      return response.data.data
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function fetchCategories() {
+    isLoading.value = true
+    try {
+      const response = await axios.get(CATEGORIES_BASE_URL)
+      return response.data.data
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function fetchEnvelopes() {
+    isLoading.value = true
+    try {
+      const response = await axios.get(ENVELOPES_BASE_URL)
       return response.data.data
     } finally {
       isLoading.value = false
@@ -82,6 +104,8 @@ export const useTransactionStore = defineStore('transaction', () => {
   return {
     isLoading,
     fetchTransactions,
+    fetchCategories,
+    fetchEnvelopes,
     createTransaction,
     deleteTransaction,
     updateTransaction,

@@ -12,9 +12,9 @@ import (
 )
 
 const createTransaction = `-- name: CreateTransaction :many
-INSERT INTO transactions (created_at, transaction_date, amount, currency, category, description, confirm)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, created_at, transaction_date, currency, amount, category, description, confirm
+INSERT INTO transactions (created_at, transaction_date, amount, currency, category, envelope, description, confirm)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, created_at, transaction_date, currency, amount, category, envelope, description, confirm
 `
 
 type CreateTransactionParams struct {
@@ -23,6 +23,7 @@ type CreateTransactionParams struct {
 	Amount          float64   `json:"amount"`
 	Currency        string    `json:"currency"`
 	Category        string    `json:"category"`
+	Envelope        string    `json:"envelope"`
 	Description     string    `json:"description"`
 	Confirm         bool      `json:"confirm"`
 }
@@ -35,6 +36,7 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 		arg.Amount,
 		arg.Currency,
 		arg.Category,
+		arg.Envelope,
 		arg.Description,
 		arg.Confirm,
 	)
@@ -52,6 +54,7 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 			&i.Currency,
 			&i.Amount,
 			&i.Category,
+			&i.Envelope,
 			&i.Description,
 			&i.Confirm,
 		); err != nil {
@@ -126,7 +129,7 @@ func (q *Queries) DeleteTransaction(ctx context.Context, id int64) error {
 }
 
 const getTransaction = `-- name: GetTransaction :one
-SELECT id, created_at, transaction_date, currency, amount, category, description, confirm FROM transactions WHERE id = ?
+SELECT id, created_at, transaction_date, currency, amount, category, envelope, description, confirm FROM transactions WHERE id = ?
 `
 
 // Retrieves a single transaction by ID.
@@ -140,6 +143,7 @@ func (q *Queries) GetTransaction(ctx context.Context, id int64) (Transaction, er
 		&i.Currency,
 		&i.Amount,
 		&i.Category,
+		&i.Envelope,
 		&i.Description,
 		&i.Confirm,
 	)
@@ -147,7 +151,7 @@ func (q *Queries) GetTransaction(ctx context.Context, id int64) (Transaction, er
 }
 
 const getTransactionByDescription = `-- name: GetTransactionByDescription :one
-SELECT id, created_at, transaction_date, currency, amount, category, description, confirm FROM transactions WHERE description = ? LIMIT 1
+SELECT id, created_at, transaction_date, currency, amount, category, envelope, description, confirm FROM transactions WHERE description = ? LIMIT 1
 `
 
 // Retrieves transaction with description.
@@ -161,19 +165,81 @@ func (q *Queries) GetTransactionByDescription(ctx context.Context, description s
 		&i.Currency,
 		&i.Amount,
 		&i.Category,
+		&i.Envelope,
 		&i.Description,
 		&i.Confirm,
 	)
 	return i, err
 }
 
+const listCategories = `-- name: ListCategories :many
+SELECT distinct category
+FROM transactions
+WHERE category != ''
+`
+
+// Retrieves all transaction categories.
+func (q *Queries) ListCategories(ctx context.Context) ([]string, error) {
+	rows, err := q.query(ctx, q.listCategoriesStmt, listCategories)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var category string
+		if err := rows.Scan(&category); err != nil {
+			return nil, err
+		}
+		items = append(items, category)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEnvelopes = `-- name: ListEnvelopes :many
+SELECT distinct envelope
+FROM transactions
+WHERE envelope != ''
+ORDER BY transaction_date DESC
+`
+
+// Retrieves envelopes.
+func (q *Queries) ListEnvelopes(ctx context.Context) ([]string, error) {
+	rows, err := q.query(ctx, q.listEnvelopesStmt, listEnvelopes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var envelope string
+		if err := rows.Scan(&envelope); err != nil {
+			return nil, err
+		}
+		items = append(items, envelope)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTransactions = `-- name: ListTransactions :many
-SELECT id, created_at, transaction_date, currency, amount, category, description, confirm
+SELECT id, created_at, transaction_date, currency, amount, category, envelope, description, confirm
 FROM transactions
 WHERE (?1 IS NULL OR confirm = ?1)
   AND (?2 IS NULL OR transaction_date >= ?2)
   AND (?3 IS NULL OR transaction_date <= ?3)
-ORDER BY transaction_date DESC, created_at DESC
+ORDER BY amount DESC
 `
 
 type ListTransactionsParams struct {
@@ -199,6 +265,7 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 			&i.Currency,
 			&i.Amount,
 			&i.Category,
+			&i.Envelope,
 			&i.Description,
 			&i.Confirm,
 		); err != nil {
@@ -311,7 +378,7 @@ func (q *Queries) TopExpenseCategories(ctx context.Context, arg TopExpenseCatego
 
 const updateTransaction = `-- name: UpdateTransaction :exec
 UPDATE transactions
-SET amount = ?, currency = ?, category = ?, description = ?, confirm = ?, transaction_date = ?
+SET amount = ?, currency = ?, category = ?, envelope = ?, description = ?, confirm = ?, transaction_date = ?
 WHERE id = ?
 `
 
@@ -319,6 +386,7 @@ type UpdateTransactionParams struct {
 	Amount          float64   `json:"amount"`
 	Currency        string    `json:"currency"`
 	Category        string    `json:"category"`
+	Envelope        string    `json:"envelope"`
 	Description     string    `json:"description"`
 	Confirm         bool      `json:"confirm"`
 	TransactionDate time.Time `json:"transaction_date"`
@@ -331,6 +399,7 @@ func (q *Queries) UpdateTransaction(ctx context.Context, arg UpdateTransactionPa
 		arg.Amount,
 		arg.Currency,
 		arg.Category,
+		arg.Envelope,
 		arg.Description,
 		arg.Confirm,
 		arg.TransactionDate,
