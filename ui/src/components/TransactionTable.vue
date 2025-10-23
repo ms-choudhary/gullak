@@ -26,7 +26,7 @@ import { Calendar as CalendarIcon } from 'lucide-vue-next';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/utils/utils';
-import { getCategoryColor } from '@/utils/common';
+import { getBadgeColor } from '@/utils/common';
 import { useTransactionStore } from '@/stores/transactions';
 
 // const categories = ['food', 'transport', 'entertainment', 'shopping', 'bills', 'stay', 'groceries', 'gift', 'misc'];
@@ -186,7 +186,7 @@ const saveTransaction = () => {
     			    </SelectGroup>
     			  </SelectContent>
     			</Select>
-          <Badge :class="getCategoryColor(transaction.category)" v-else>{{ transaction.category }}</Badge>
+          <Badge :class="getBadgeColor(transaction.category)" v-else>{{ transaction.category }}</Badge>
         </TableCell>
         <TableCell>
 					<Input class="w-full" v-if="localEditingTransaction && localEditingTransaction.id === transaction.id && addingNewEnvelope"
@@ -216,7 +216,7 @@ const saveTransaction = () => {
     			    </SelectGroup>
     			  </SelectContent>
     			</Select>
-          <Badge :class="bg-gray-500" v-else>{{ transaction.envelope }}</Badge>
+          <Badge :class="getBadgeColor(transaction.envelope)" v-else>{{ transaction.envelope }}</Badge>
         </TableCell>
         <TableCell>
           <Input class="w-3/4" v-if="localEditingTransaction && localEditingTransaction.id === transaction.id"
