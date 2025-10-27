@@ -11,7 +11,7 @@ FROM transactions
 WHERE (:confirm IS NULL OR confirm = :confirm)
   AND (:start_date IS NULL OR transaction_date >= :start_date)
   AND (:end_date IS NULL OR transaction_date <= :end_date)
-ORDER BY amount DESC;
+ORDER BY transaction_date DESC, created_at DESC;
 
 -- name: GetTransaction :one
 -- Retrieves a single transaction by ID.

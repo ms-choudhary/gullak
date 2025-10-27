@@ -239,7 +239,7 @@ FROM transactions
 WHERE (?1 IS NULL OR confirm = ?1)
   AND (?2 IS NULL OR transaction_date >= ?2)
   AND (?3 IS NULL OR transaction_date <= ?3)
-ORDER BY amount DESC
+ORDER BY transaction_date DESC, created_at DESC
 `
 
 type ListTransactionsParams struct {
