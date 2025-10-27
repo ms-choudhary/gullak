@@ -14,6 +14,8 @@ const transactionStore = useTransactionStore();
 const categoriesData = ref([]);
 const dailyData = ref([]);
 const transactions = ref([]);
+const selectedEnvelopes = ref<string[]>([]);
+const availableEnvelopes = ref<string[]>([]);
 const dateRange = ref({
     start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),  // 30 days ago
     end: new Date().toISOString().slice(0, 10)  // Today
@@ -22,9 +24,9 @@ const dateRange = ref({
 const fetchData = async () => {
     try {
         const [dailySpending, categories, transData] = await Promise.all([
-            transactionStore.fetchDailySpending(dateRange.value.start, dateRange.value.end),
-            transactionStore.fetchTopExpenseCategories(dateRange.value.start, dateRange.value.end),
-            transactionStore.fetchTransactions(true, dateRange.value.start, dateRange.value.end)
+            transactionStore.fetchDailySpending(dateRange.value.start, dateRange.value.end, selectedEnvelopes.value),
+            transactionStore.fetchTopExpenseCategories(dateRange.value.start, dateRange.value.end, selectedEnvelopes.value),
+            transactionStore.fetchTransactions(true, dateRange.value.start, dateRange.value.end, selectedEnvelopes.value)
         ]);
         dailyData.value = dailySpending.map(day => ({
             transaction_date: day.transaction_date,
@@ -60,21 +62,39 @@ const deleteTransactionHandler = async (transaction) => {
     }
 }
 
+const fetchAvailableEnvelopes = async () => {
+    try {
+        const envelopesArr = await transactionStore.fetchEnvelopes(dateRange.value.start, dateRange.value.end)
+				console.log(envelopesArr)
+        availableEnvelopes.value = envelopesArr
+    } catch (error) {
+        showToast('Error fetching data.', error.response?.data?.error || error.message, true);
+    }
+}
+
 // When the date range is updated, fetch new data.
 const handleDateRangeUpdate = (newDates) => {
     dateRange.value = { ...dateRange.value, start: newDates.start, end: newDates.end };
+    fetchAvailableEnvelopes();
     fetchData();
 };
 
-onMounted(fetchData);
-watch(dateRange, fetchData, { deep: true });
+const handleEnvelopeFilterUpdate = (envelopes: string[]) => {
+    selectedEnvelopes.value = envelopes;
+    fetchData();
+};
+
+onMounted(() => {
+  fetchAvailableEnvelopes();
+  fetchData();
+});
 </script>
 
 <template>
     <section class="p-6">
         <div class="flex flex-wrap items-center justify-between py-4">
             <h1 class="text-2xl font-semibold text-gray-800 flex-1">Dashboard Overview</h1>
-            <Filter/>
+            <Filter :envelopes="availableEnvelopes" @update:selectedEnvelopes="handleEnvelopeFilterUpdate"/>
             <DateRangePicker v-model="dateRange" @update:dateRange="handleDateRangeUpdate" class="flex-initial" />
         </div>
         <div class="charts mt-4 flex flex-wrap justify-center items-stretch">

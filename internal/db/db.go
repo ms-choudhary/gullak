@@ -36,14 +36,14 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getTransactionStmt, err = db.PrepareContext(ctx, getTransaction); err != nil {
 		return nil, fmt.Errorf("error preparing query GetTransaction: %w", err)
 	}
-	if q.getTransactionByDescriptionStmt, err = db.PrepareContext(ctx, getTransactionByDescription); err != nil {
-		return nil, fmt.Errorf("error preparing query GetTransactionByDescription: %w", err)
-	}
 	if q.listCategoriesStmt, err = db.PrepareContext(ctx, listCategories); err != nil {
 		return nil, fmt.Errorf("error preparing query ListCategories: %w", err)
 	}
 	if q.listEnvelopesStmt, err = db.PrepareContext(ctx, listEnvelopes); err != nil {
 		return nil, fmt.Errorf("error preparing query ListEnvelopes: %w", err)
+	}
+	if q.listEnvelopesBetweenDatesStmt, err = db.PrepareContext(ctx, listEnvelopesBetweenDates); err != nil {
+		return nil, fmt.Errorf("error preparing query ListEnvelopesBetweenDates: %w", err)
 	}
 	if q.listTransactionsStmt, err = db.PrepareContext(ctx, listTransactions); err != nil {
 		return nil, fmt.Errorf("error preparing query ListTransactions: %w", err)
@@ -82,11 +82,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getTransactionStmt: %w", cerr)
 		}
 	}
-	if q.getTransactionByDescriptionStmt != nil {
-		if cerr := q.getTransactionByDescriptionStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getTransactionByDescriptionStmt: %w", cerr)
-		}
-	}
 	if q.listCategoriesStmt != nil {
 		if cerr := q.listCategoriesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listCategoriesStmt: %w", cerr)
@@ -95,6 +90,11 @@ func (q *Queries) Close() error {
 	if q.listEnvelopesStmt != nil {
 		if cerr := q.listEnvelopesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listEnvelopesStmt: %w", cerr)
+		}
+	}
+	if q.listEnvelopesBetweenDatesStmt != nil {
+		if cerr := q.listEnvelopesBetweenDatesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listEnvelopesBetweenDatesStmt: %w", cerr)
 		}
 	}
 	if q.listTransactionsStmt != nil {
@@ -154,35 +154,35 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                              DBTX
-	tx                              *sql.Tx
-	createTransactionStmt           *sql.Stmt
-	dailySpendingStmt               *sql.Stmt
-	deleteTransactionStmt           *sql.Stmt
-	getTransactionStmt              *sql.Stmt
-	getTransactionByDescriptionStmt *sql.Stmt
-	listCategoriesStmt              *sql.Stmt
-	listEnvelopesStmt               *sql.Stmt
-	listTransactionsStmt            *sql.Stmt
-	monthlySpendingSummaryStmt      *sql.Stmt
-	topExpenseCategoriesStmt        *sql.Stmt
-	updateTransactionStmt           *sql.Stmt
+	db                            DBTX
+	tx                            *sql.Tx
+	createTransactionStmt         *sql.Stmt
+	dailySpendingStmt             *sql.Stmt
+	deleteTransactionStmt         *sql.Stmt
+	getTransactionStmt            *sql.Stmt
+	listCategoriesStmt            *sql.Stmt
+	listEnvelopesStmt             *sql.Stmt
+	listEnvelopesBetweenDatesStmt *sql.Stmt
+	listTransactionsStmt          *sql.Stmt
+	monthlySpendingSummaryStmt    *sql.Stmt
+	topExpenseCategoriesStmt      *sql.Stmt
+	updateTransactionStmt         *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                              tx,
-		tx:                              tx,
-		createTransactionStmt:           q.createTransactionStmt,
-		dailySpendingStmt:               q.dailySpendingStmt,
-		deleteTransactionStmt:           q.deleteTransactionStmt,
-		getTransactionStmt:              q.getTransactionStmt,
-		getTransactionByDescriptionStmt: q.getTransactionByDescriptionStmt,
-		listCategoriesStmt:              q.listCategoriesStmt,
-		listEnvelopesStmt:               q.listEnvelopesStmt,
-		listTransactionsStmt:            q.listTransactionsStmt,
-		monthlySpendingSummaryStmt:      q.monthlySpendingSummaryStmt,
-		topExpenseCategoriesStmt:        q.topExpenseCategoriesStmt,
-		updateTransactionStmt:           q.updateTransactionStmt,
+		db:                            tx,
+		tx:                            tx,
+		createTransactionStmt:         q.createTransactionStmt,
+		dailySpendingStmt:             q.dailySpendingStmt,
+		deleteTransactionStmt:         q.deleteTransactionStmt,
+		getTransactionStmt:            q.getTransactionStmt,
+		listCategoriesStmt:            q.listCategoriesStmt,
+		listEnvelopesStmt:             q.listEnvelopesStmt,
+		listEnvelopesBetweenDatesStmt: q.listEnvelopesBetweenDatesStmt,
+		listTransactionsStmt:          q.listTransactionsStmt,
+		monthlySpendingSummaryStmt:    q.monthlySpendingSummaryStmt,
+		topExpenseCategoriesStmt:      q.topExpenseCategoriesStmt,
+		updateTransactionStmt:         q.updateTransactionStmt,
 	}
 }

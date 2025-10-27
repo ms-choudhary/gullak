@@ -11,6 +11,7 @@ FROM transactions
 WHERE (:confirm IS NULL OR confirm = :confirm)
   AND (:start_date IS NULL OR transaction_date >= :start_date)
   AND (:end_date IS NULL OR transaction_date <= :end_date)
+  AND envelope IN (sqlc.slice('envelopes'))
 ORDER BY transaction_date DESC, created_at DESC;
 
 -- name: GetTransaction :one
@@ -35,6 +36,7 @@ SELECT
     SUM(amount) AS total_spent
 FROM transactions
 WHERE transaction_date BETWEEN :startDate AND :endDate AND confirm = 1
+  AND envelope IN (sqlc.slice('envelopes'))
 GROUP BY category
 ORDER BY total_spent DESC
 LIMIT 5;-- Can be adjusted to show more or fewer categories
@@ -47,6 +49,7 @@ SELECT
     SUM(amount) AS total_spent
 FROM transactions
 WHERE transaction_date BETWEEN :startDate AND :endDate AND confirm = 1
+  AND envelope IN (sqlc.slice('envelopes'))
 GROUP BY transaction_date
 ORDER BY transaction_date ASC;
 
@@ -62,10 +65,6 @@ FROM transactions
 GROUP BY year, month, category
 ORDER BY year DESC, month DESC, total_spent DESC;
 
--- name: GetTransactionByDescription :one
--- Retrieves transaction with description.
-SELECT * FROM transactions WHERE description = ? LIMIT 1;
-
 -- name: ListCategories :many
 -- Retrieves all transaction categories.
 SELECT distinct category
@@ -77,4 +76,13 @@ WHERE category != '';
 SELECT distinct envelope
 FROM transactions
 WHERE envelope != ''
+ORDER BY transaction_date DESC;
+
+-- name: ListEnvelopesBetweenDates :many
+-- Retrieves envelopes between start and end date.
+SELECT distinct envelope
+FROM transactions
+WHERE envelope != ''
+  AND (:start_date IS NULL OR transaction_date >= :start_date)
+  AND (:end_date IS NULL OR transaction_date <= :end_date)
 ORDER BY transaction_date DESC;

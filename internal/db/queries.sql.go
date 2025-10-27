@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -79,6 +80,7 @@ SELECT
     SUM(amount) AS total_spent
 FROM transactions
 WHERE transaction_date BETWEEN ?1 AND ?2 AND confirm = 1
+  AND envelope IN (/*SLICE:envelopes*/?)
 GROUP BY transaction_date
 ORDER BY transaction_date ASC
 `
@@ -86,6 +88,7 @@ ORDER BY transaction_date ASC
 type DailySpendingParams struct {
 	StartDate time.Time `json:"startDate"`
 	EndDate   time.Time `json:"endDate"`
+	Envelopes []string  `json:"envelopes"`
 }
 
 type DailySpendingRow struct {
@@ -96,7 +99,19 @@ type DailySpendingRow struct {
 // Can be adjusted to show more or fewer categories
 // Retrieves the sum total of all transactions for each day within a specified date range.
 func (q *Queries) DailySpending(ctx context.Context, arg DailySpendingParams) ([]DailySpendingRow, error) {
-	rows, err := q.query(ctx, q.dailySpendingStmt, dailySpending, arg.StartDate, arg.EndDate)
+	query := dailySpending
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.StartDate)
+	queryParams = append(queryParams, arg.EndDate)
+	if len(arg.Envelopes) > 0 {
+		for _, v := range arg.Envelopes {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:envelopes*/?", strings.Repeat(",?", len(arg.Envelopes))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:envelopes*/?", "NULL", 1)
+	}
+	rows, err := q.query(ctx, nil, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}
@@ -135,28 +150,6 @@ SELECT id, created_at, transaction_date, currency, amount, category, envelope, d
 // Retrieves a single transaction by ID.
 func (q *Queries) GetTransaction(ctx context.Context, id int64) (Transaction, error) {
 	row := q.queryRow(ctx, q.getTransactionStmt, getTransaction, id)
-	var i Transaction
-	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.TransactionDate,
-		&i.Currency,
-		&i.Amount,
-		&i.Category,
-		&i.Envelope,
-		&i.Description,
-		&i.Confirm,
-	)
-	return i, err
-}
-
-const getTransactionByDescription = `-- name: GetTransactionByDescription :one
-SELECT id, created_at, transaction_date, currency, amount, category, envelope, description, confirm FROM transactions WHERE description = ? LIMIT 1
-`
-
-// Retrieves transaction with description.
-func (q *Queries) GetTransactionByDescription(ctx context.Context, description string) (Transaction, error) {
-	row := q.queryRow(ctx, q.getTransactionByDescriptionStmt, getTransactionByDescription, description)
 	var i Transaction
 	err := row.Scan(
 		&i.ID,
@@ -233,12 +226,51 @@ func (q *Queries) ListEnvelopes(ctx context.Context) ([]string, error) {
 	return items, nil
 }
 
+const listEnvelopesBetweenDates = `-- name: ListEnvelopesBetweenDates :many
+SELECT distinct envelope
+FROM transactions
+WHERE envelope != ''
+  AND (?1 IS NULL OR transaction_date >= ?1)
+  AND (?2 IS NULL OR transaction_date <= ?2)
+ORDER BY transaction_date DESC
+`
+
+type ListEnvelopesBetweenDatesParams struct {
+	StartDate interface{} `json:"start_date"`
+	EndDate   interface{} `json:"end_date"`
+}
+
+// Retrieves envelopes between start and end date.
+func (q *Queries) ListEnvelopesBetweenDates(ctx context.Context, arg ListEnvelopesBetweenDatesParams) ([]string, error) {
+	rows, err := q.query(ctx, q.listEnvelopesBetweenDatesStmt, listEnvelopesBetweenDates, arg.StartDate, arg.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var envelope string
+		if err := rows.Scan(&envelope); err != nil {
+			return nil, err
+		}
+		items = append(items, envelope)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTransactions = `-- name: ListTransactions :many
 SELECT id, created_at, transaction_date, currency, amount, category, envelope, description, confirm
 FROM transactions
 WHERE (?1 IS NULL OR confirm = ?1)
   AND (?2 IS NULL OR transaction_date >= ?2)
   AND (?3 IS NULL OR transaction_date <= ?3)
+  AND envelope IN (/*SLICE:envelopes*/?)
 ORDER BY transaction_date DESC, created_at DESC
 `
 
@@ -246,11 +278,25 @@ type ListTransactionsParams struct {
 	Confirm   interface{} `json:"confirm"`
 	StartDate interface{} `json:"start_date"`
 	EndDate   interface{} `json:"end_date"`
+	Envelopes []string    `json:"envelopes"`
 }
 
 // Retrieves transactions optionally filtered by confirmation status and date range.
 func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]Transaction, error) {
-	rows, err := q.query(ctx, q.listTransactionsStmt, listTransactions, arg.Confirm, arg.StartDate, arg.EndDate)
+	query := listTransactions
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Confirm)
+	queryParams = append(queryParams, arg.StartDate)
+	queryParams = append(queryParams, arg.EndDate)
+	if len(arg.Envelopes) > 0 {
+		for _, v := range arg.Envelopes {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:envelopes*/?", strings.Repeat(",?", len(arg.Envelopes))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:envelopes*/?", "NULL", 1)
+	}
+	rows, err := q.query(ctx, nil, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}
@@ -336,6 +382,7 @@ SELECT
     SUM(amount) AS total_spent
 FROM transactions
 WHERE transaction_date BETWEEN ?1 AND ?2 AND confirm = 1
+  AND envelope IN (/*SLICE:envelopes*/?)
 GROUP BY category
 ORDER BY total_spent DESC
 LIMIT 5
@@ -344,6 +391,7 @@ LIMIT 5
 type TopExpenseCategoriesParams struct {
 	StartDate time.Time `json:"startDate"`
 	EndDate   time.Time `json:"endDate"`
+	Envelopes []string  `json:"envelopes"`
 }
 
 type TopExpenseCategoriesRow struct {
@@ -354,7 +402,19 @@ type TopExpenseCategoriesRow struct {
 // Retrieves the top expense categories over a specified period.
 // Uses parameters: confirm, startDate, endDate to filter by transaction date range.
 func (q *Queries) TopExpenseCategories(ctx context.Context, arg TopExpenseCategoriesParams) ([]TopExpenseCategoriesRow, error) {
-	rows, err := q.query(ctx, q.topExpenseCategoriesStmt, topExpenseCategories, arg.StartDate, arg.EndDate)
+	query := topExpenseCategories
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.StartDate)
+	queryParams = append(queryParams, arg.EndDate)
+	if len(arg.Envelopes) > 0 {
+		for _, v := range arg.Envelopes {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:envelopes*/?", strings.Repeat(",?", len(arg.Envelopes))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:envelopes*/?", "NULL", 1)
+	}
+	rows, err := q.query(ctx, nil, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}

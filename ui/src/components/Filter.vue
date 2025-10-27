@@ -1,32 +1,42 @@
 <script setup lang="ts">
 import { useFilter } from "reka-ui"
-import { computed, ref, onMounted } from "vue"
+import { computed, ref, watch } from "vue"
 import { Combobox, ComboboxAnchor, ComboboxEmpty, ComboboxGroup, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/combobox"
 import { TagsInput, TagsInputInput, TagsInputItem, TagsInputItemDelete, TagsInputItemText } from "@/components/ui/tags-input"
-import { useTransactionStore } from "@/stores/transactions"
 
-const transactionStore = useTransactionStore()
-const envelopes = ref<Array<{value: string, label: string}>>([])
+const emit = defineEmits<{
+  'update:selectedEnvelopes': [envelopes: string[]]
+}>()
+
+const props = defineProps<{
+  envelopes: string[]
+}>()
+
+const envelopesData = computed(() => 
+  props.envelopes.map((envelope: string) => ({
+    value: envelope,
+    label: envelope
+  }))
+)
+
 const modelValue = ref<string[]>([])
 const open = ref(false)
 const searchTerm = ref("")
 
-// Load available envelopes on component mount
-onMounted(async () => {
-  try {
-    const envelopeData = await transactionStore.fetchEnvelopes()
-    envelopes.value = envelopeData.map((envelope: string) => ({
-      value: envelope,
-      label: envelope
-    }))
-  } catch (error) {
-    console.error('Failed to load envelopes:', error)
+watch(modelValue, (newValue) => {
+  emit('update:selectedEnvelopes', newValue)
+}, { deep: true })
+
+watch(() => props.envelopes, (newEnvelopes) => {
+  if (newEnvelopes && newEnvelopes.length > 0) {
+    modelValue.value = [...newEnvelopes]
   }
-})
+}, { immediate: true })
 
 const { contains } = useFilter({ sensitivity: "base" })
+
 const filteredEnvelopes = computed(() => {
-  const options = envelopes.value.filter(i => !modelValue.value.includes(i.label))
+  const options = envelopesData.value.filter(i => !modelValue.value.includes(i.label))
   return searchTerm.value ? options.filter(option => contains(option.label, searchTerm.value)) : options
 })
 </script>

@@ -10,7 +10,7 @@ const REPORTS_BASE_URL = '/api/reports'
 export const useTransactionStore = defineStore('transaction', () => {
   const isLoading = ref(false)
 
-  async function fetchTransactions(confirmed = true, startDate = null, endDate = null) {
+  async function fetchTransactions(confirmed = true, startDate = null, endDate = null, envelopes = null) {
     isLoading.value = true
     try {
       const params = { confirm: confirmed }
@@ -19,6 +19,9 @@ export const useTransactionStore = defineStore('transaction', () => {
       }
       if (endDate && endDate.trim() !== '') {
         params.end_date = endDate
+      }
+      if (envelopes && envelopes.length > 0) {
+        params.envelopes = envelopes.join(',')
       }
       const response = await axios.get(TRANSACTIONS_BASE_URL, { params })
       return response.data.data
@@ -37,16 +40,22 @@ export const useTransactionStore = defineStore('transaction', () => {
     }
   }
 
-  async function fetchEnvelopes() {
+  async function fetchEnvelopes(startDate = null, endDate = null) {
     isLoading.value = true
     try {
-      const response = await axios.get(ENVELOPES_BASE_URL)
+      const response = await axios.get(ENVELOPES_BASE_URL, {
+        params: { 
+          start_date: startDate, 
+          end_date: endDate,
+        },
+      })
       return response.data.data
     } finally {
       isLoading.value = false
     }
   }
 
+  // TODO: this needs to change
   async function createTransaction(line) {
     isLoading.value = true
     try {
@@ -74,13 +83,14 @@ export const useTransactionStore = defineStore('transaction', () => {
     }
   }
 
-  async function fetchTopExpenseCategories(startDate, endDate) {
+  async function fetchTopExpenseCategories(startDate, endDate, envelopes = null) {
     isLoading.value = true;
     try {
       const response = await axios.get(`${REPORTS_BASE_URL}/top-expense-categories`, {
         params: {
           start_date: startDate,
           end_date: endDate,
+          envelopes: envelopes && envelopes.length > 0 ? envelopes.join(',') : '',
         },
       });
       return response.data.data;
@@ -89,11 +99,15 @@ export const useTransactionStore = defineStore('transaction', () => {
     }
   }
 
-  async function fetchDailySpending(startDate, endDate) {
+  async function fetchDailySpending(startDate, endDate, envelopes = null) {
     isLoading.value = true;
     try {
       const response = await axios.get(`${REPORTS_BASE_URL}/daily-spending`, {
-        params: { start_date: startDate, end_date: endDate },
+        params: { 
+          start_date: startDate, 
+          end_date: endDate,
+          envelopes: envelopes && envelopes.length > 0 ? envelopes.join(',') : '',
+        },
       });
       return response.data.data;
     } finally {

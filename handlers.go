@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -55,11 +56,54 @@ func handleListCategories(c echo.Context) error {
 
 func handleListEnvelopes(c echo.Context) error {
 	m := c.Get("app").(*App)
+	startDateStr := c.QueryParam("start_date")
+	endDateStr := c.QueryParam("end_date")
 
-	envelopes, err := m.queries.ListEnvelopes(context.Background())
+	if startDateStr == "" || endDateStr == "" {
+		envelopes, err := m.queries.ListEnvelopes(context.Background())
+		if err != nil {
+			m.log.Error("Error retrieving envelopes", "error", err)
+			return c.JSON(http.StatusInternalServerError, Resp{Error: "Error retrieving envelopes"})
+		}
+		return c.JSON(http.StatusOK, Resp{
+			Data:    envelopes,
+			Message: "Envelopes retrieved",
+		})
+	}
+
+	// Parse start date and end date strings into time.Time
+	startDate, err := time.Parse("2006-01-02", startDateStr)
 	if err != nil {
-		m.log.Error("Error retrieving envelopes", "error", err)
-		return c.JSON(http.StatusInternalServerError, Resp{Error: "Error retrieving envelopes"})
+		m.log.Error("Invalid start date", "error", err)
+		return c.JSON(http.StatusBadRequest, Resp{
+			Error: "Invalid start date format, use YYYY-MM-DD",
+		})
+	}
+
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		m.log.Error("Invalid end date", "error", err)
+		return c.JSON(http.StatusBadRequest, Resp{
+			Error: "Invalid end date format, use YYYY-MM-DD",
+		})
+	}
+
+	// Validate the date range
+	if err := validateDateRange(startDate, endDate); err != nil {
+		return c.JSON(http.StatusBadRequest, Resp{
+			Error: err.Error(),
+		})
+	}
+
+	params := db.ListEnvelopesBetweenDatesParams{
+		StartDate: startDate,
+		EndDate:   endDate,
+	}
+
+	envelopes, err := m.queries.ListEnvelopesBetweenDates(context.Background(), params)
+	if err != nil {
+		m.log.Error("Error retrieving envelopes between dates", "error", err)
+		return c.JSON(http.StatusInternalServerError, Resp{Error: "Error retrieving envelopes between dates"})
 	}
 
 	return c.JSON(http.StatusOK, Resp{
@@ -85,12 +129,6 @@ func handleCreateTransaction(c echo.Context) error {
 		})
 	}
 
-	category, err := m.GetCategoryWithDescription(input.Description)
-	if err != nil {
-		m.log.Error("Failed to get category with description", "error", err)
-	}
-
-	input.Category = category
 	input.Envelope = "default"
 
 	transactions := models.Transactions{
@@ -175,6 +213,9 @@ func handleListTransactions(c echo.Context) error {
 			})
 		}
 	}
+
+	envelopesStr := c.QueryParam("envelopes")
+	params.Envelopes = strings.Split(envelopesStr, ",")
 
 	transactions, err := m.queries.ListTransactions(context.Background(), params)
 	if err != nil {
@@ -326,9 +367,12 @@ func handleTopExpenseCategories(c echo.Context) error {
 		})
 	}
 
+	envelopes := strings.Split(c.QueryParam("envelopes"), ",")
+
 	params := db.TopExpenseCategoriesParams{
 		StartDate: startDate,
 		EndDate:   endDate,
+		Envelopes: envelopes,
 	}
 
 	rawCategories, err := m.queries.TopExpenseCategories(context.Background(), params)
@@ -392,9 +436,12 @@ func handleDailySpending(c echo.Context) error {
 		})
 	}
 
+	envelopes := strings.Split(c.QueryParam("envelopes"), ",")
+
 	params := db.DailySpendingParams{
 		StartDate: startDate,
 		EndDate:   endDate,
+		Envelopes: envelopes,
 	}
 
 	rawSpending, err := m.queries.DailySpending(context.Background(), params)
