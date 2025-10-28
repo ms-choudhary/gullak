@@ -215,6 +215,9 @@ func handleListTransactions(c echo.Context) error {
 	}
 
 	envelopesStr := c.QueryParam("envelopes")
+	if envelopesStr == "" && !params.Confirm.(bool) {
+		envelopesStr = "default"
+	}
 	params.Envelopes = strings.Split(envelopesStr, ",")
 
 	transactions, err := m.queries.ListTransactions(context.Background(), params)
