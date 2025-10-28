@@ -55,11 +55,15 @@ export const useTransactionStore = defineStore('transaction', () => {
     }
   }
 
-  // TODO: this needs to change
-  async function createTransaction(line) {
+  async function createTransaction(transactionData) {
     isLoading.value = true
     try {
-      await axios.post(TRANSACTIONS_BASE_URL, { line, confirm: false })
+      const payload = {
+        amount: transactionData.amount,
+        description: transactionData.description,
+        confirm: false
+      }
+      await axios.post(TRANSACTIONS_BASE_URL, payload)
     } finally {
       isLoading.value = false;
     }

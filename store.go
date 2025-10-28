@@ -28,6 +28,7 @@ func createTableSQL(currency string) string {
             currency TEXT NOT NULL DEFAULT '%s',
             amount FLOAT NOT NULL,
             category TEXT NOT NULL,
+            envelope TEXT NOT NULL DEFAULT 'default',
             description TEXT NOT NULL DEFAULT '',
             confirm BOOLEAN NOT NULL DEFAULT false
         );
