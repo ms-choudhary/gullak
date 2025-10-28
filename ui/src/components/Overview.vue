@@ -16,9 +16,13 @@ const dailyData = ref([]);
 const transactions = ref([]);
 const selectedEnvelopes = ref<string[]>([]);
 const availableEnvelopes = ref<string[]>([]);
+
+const today = new Date();
+const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
 const dateRange = ref({
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),  // 30 days ago
-    end: new Date().toISOString().slice(0, 10)  // Today
+    start: `${startOfMonth.getFullYear()}-${String(startOfMonth.getMonth() + 1).padStart(2, '0')}-${String(startOfMonth.getDate()).padStart(2, '0')}`,  // Start of current month
+    end: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`  // Today
 });
 
 const fetchData = async () => {
