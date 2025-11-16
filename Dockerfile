@@ -32,7 +32,7 @@ WORKDIR /app
 
 # Copy the binary
 COPY --from=builder /app/build/bin/gullak.bin ./gullak.bin
-COPY config.sample.toml config.toml
+COPY config.toml config.toml
 
 # Set the entrypoint
 EXPOSE 3333
