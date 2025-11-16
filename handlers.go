@@ -215,10 +215,18 @@ func handleListTransactions(c echo.Context) error {
 	}
 
 	envelopesStr := c.QueryParam("envelopes")
-	if envelopesStr == "" && !params.Confirm.(bool) {
+	if envelopesStr == "" && (params.Confirm != nil && !params.Confirm.(bool)) {
 		envelopesStr = "default"
 	}
 	params.Envelopes = strings.Split(envelopesStr, ",")
+
+	// Handle category filter
+	categoryStr := c.QueryParam("category")
+	if categoryStr != "" {
+		params.Category = categoryStr
+	} else {
+		params.Category = nil // Explicitly setting as nil if not provided
+	}
 
 	transactions, err := m.queries.ListTransactions(context.Background(), params)
 	if err != nil {

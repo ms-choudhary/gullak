@@ -16,6 +16,7 @@ const dailyData = ref([]);
 const transactions = ref([]);
 const selectedEnvelopes = ref<string[]>([]);
 const availableEnvelopes = ref<string[]>([]);
+const selectedCategory = ref<string | null>(null);
 
 const today = new Date();
 const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -30,7 +31,7 @@ const fetchData = async () => {
         const [dailySpending, categories, transData] = await Promise.all([
             transactionStore.fetchDailySpending(dateRange.value.start, dateRange.value.end, selectedEnvelopes.value),
             transactionStore.fetchTopExpenseCategories(dateRange.value.start, dateRange.value.end, selectedEnvelopes.value),
-            transactionStore.fetchTransactions(true, dateRange.value.start, dateRange.value.end, selectedEnvelopes.value)
+            transactionStore.fetchTransactions(true, dateRange.value.start, dateRange.value.end, selectedEnvelopes.value, selectedCategory.value)
         ]);
         dailyData.value = dailySpending.map(day => ({
             transaction_date: day.transaction_date,
@@ -88,6 +89,11 @@ const handleEnvelopeFilterUpdate = (envelopes: string[]) => {
     fetchData();
 };
 
+const handleCategoryFilter = (category: string | null) => {
+    selectedCategory.value = category;
+    fetchData();
+};
+
 onMounted(() => {
   fetchAvailableEnvelopes();
   fetchData();
@@ -103,7 +109,7 @@ onMounted(() => {
         </div>
         <div class="charts mt-4 flex flex-wrap justify-center items-stretch">
             <div class="w-full md:w-1/2 p-2">
-                <DonutChart :data="categoriesData" index="name" :category="'total'" class="w-full h-full" />
+                <DonutChart :data="categoriesData" index="name" :category="'total'" class="w-full h-full" @categorySelected="handleCategoryFilter" />
             </div>
             <div class="w-full md:w-1/2 p-2">
                 <AreaChart :data="dailyData" index="transaction_date" :categories="['total_spent']"
@@ -112,7 +118,14 @@ onMounted(() => {
             </div>
         </div>
         <div class="transactions mt-4">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Transactions Log</h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Transactions Log</h2>
+                <div v-if="selectedCategory" class="flex items-center gap-2">
+                    <span class="text-sm text-gray-600">Filtered by category:</span>
+                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">{{ selectedCategory }}</span>
+                    <button @click="handleCategoryFilter(null)" class="text-sm text-red-600 hover:text-red-800 underline">Clear filter</button>
+                </div>
+            </div>
             <TransactionTable :transactions="transactions" :on-delete="deleteTransactionHandler"
                 :on-save="saveTransactionHandler" />
         </div>

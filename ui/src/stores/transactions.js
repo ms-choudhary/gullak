@@ -10,7 +10,7 @@ const REPORTS_BASE_URL = '/api/reports'
 export const useTransactionStore = defineStore('transaction', () => {
   const isLoading = ref(false)
 
-  async function fetchTransactions(confirmed = true, startDate = null, endDate = null, envelopes = null) {
+  async function fetchTransactions(confirmed = true, startDate = null, endDate = null, envelopes = null, category = null) {
     isLoading.value = true
     try {
       const params = { confirm: confirmed }
@@ -22,6 +22,9 @@ export const useTransactionStore = defineStore('transaction', () => {
       }
       if (envelopes && envelopes.length > 0) {
         params.envelopes = envelopes.join(',')
+      }
+      if (category && category.trim() !== '') {
+        params.category = category
       }
       const response = await axios.get(TRANSACTIONS_BASE_URL, { params })
       return response.data.data

@@ -270,6 +270,7 @@ FROM transactions
 WHERE (?1 IS NULL OR confirm = ?1)
   AND (?2 IS NULL OR transaction_date >= ?2)
   AND (?3 IS NULL OR transaction_date <= ?3)
+  AND (?4 IS NULL OR category = ?4)
   AND envelope IN (/*SLICE:envelopes*/?)
 ORDER BY transaction_date DESC, created_at DESC
 `
@@ -278,16 +279,18 @@ type ListTransactionsParams struct {
 	Confirm   interface{} `json:"confirm"`
 	StartDate interface{} `json:"start_date"`
 	EndDate   interface{} `json:"end_date"`
+	Category  interface{} `json:"category"`
 	Envelopes []string    `json:"envelopes"`
 }
 
-// Retrieves transactions optionally filtered by confirmation status and date range.
+// Retrieves transactions optionally filtered by confirmation status, date range, and category.
 func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]Transaction, error) {
 	query := listTransactions
 	var queryParams []interface{}
 	queryParams = append(queryParams, arg.Confirm)
 	queryParams = append(queryParams, arg.StartDate)
 	queryParams = append(queryParams, arg.EndDate)
+	queryParams = append(queryParams, arg.Category)
 	if len(arg.Envelopes) > 0 {
 		for _, v := range arg.Envelopes {
 			queryParams = append(queryParams, v)

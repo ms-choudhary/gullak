@@ -5,12 +5,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: ListTransactions :many
--- Retrieves transactions optionally filtered by confirmation status and date range.
+-- Retrieves transactions optionally filtered by confirmation status, date range, and category.
 SELECT *
 FROM transactions
 WHERE (:confirm IS NULL OR confirm = :confirm)
   AND (:start_date IS NULL OR transaction_date >= :start_date)
   AND (:end_date IS NULL OR transaction_date <= :end_date)
+  AND (:category IS NULL OR category = :category)
   AND envelope IN (sqlc.slice('envelopes'))
 ORDER BY transaction_date DESC, created_at DESC;
 
