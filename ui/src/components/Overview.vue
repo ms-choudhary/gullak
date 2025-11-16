@@ -47,6 +47,20 @@ const fetchData = async () => {
     }
 }
 
+const fetchTableData = async () => {
+    try {
+        transactions.value = await transactionStore.fetchTransactions(
+            true, 
+            dateRange.value.start, 
+            dateRange.value.end, 
+            selectedEnvelopes.value, 
+            selectedCategory.value
+        );
+    } catch (error) {
+        showToast('Error fetching data.', error.response?.data?.error || error.message, true);
+    }
+}
+
 const saveTransactionHandler = async (transaction) => {
     try {
         await transactionStore.updateTransaction(transaction);
@@ -91,7 +105,7 @@ const handleEnvelopeFilterUpdate = (envelopes: string[]) => {
 
 const handleCategoryFilter = (category: string | null) => {
     selectedCategory.value = category;
-    fetchData();
+    fetchTableData();
 };
 
 onMounted(() => {
