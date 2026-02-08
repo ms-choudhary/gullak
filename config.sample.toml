@@ -1,10 +1,17 @@
 [app]
 debug = true
 currency = "INR"
-db_path = "./expenses.db"
+db_path = "/data/expenses.db"
+
+[http]
+enabled = true
+address = ":3333"
+timeout = "30s"
 
 [openai]
+base_url = "https://api.openai.com/v1"
 token = "redacted"
+model = "gpt-4o-mini"
 timeout = "10s"
 
 [telegram]
