@@ -96,7 +96,7 @@ type DailySpendingRow struct {
 	TotalSpent      sql.NullFloat64 `json:"total_spent"`
 }
 
-// Can be adjusted to show more or fewer categories
+// LIMIT 10;-- Can be adjusted to show more or fewer categories
 // Retrieves the sum total of all transactions for each day within a specified date range.
 func (q *Queries) DailySpending(ctx context.Context, arg DailySpendingParams) ([]DailySpendingRow, error) {
 	query := dailySpending
@@ -388,7 +388,6 @@ WHERE transaction_date BETWEEN ?1 AND ?2 AND confirm = 1
   AND envelope IN (/*SLICE:envelopes*/?)
 GROUP BY category
 ORDER BY total_spent DESC
-LIMIT 5
 `
 
 type TopExpenseCategoriesParams struct {

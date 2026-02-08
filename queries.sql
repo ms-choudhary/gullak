@@ -39,8 +39,8 @@ FROM transactions
 WHERE transaction_date BETWEEN :startDate AND :endDate AND confirm = 1
   AND envelope IN (sqlc.slice('envelopes'))
 GROUP BY category
-ORDER BY total_spent DESC
-LIMIT 5;-- Can be adjusted to show more or fewer categories
+ORDER BY total_spent DESC;
+-- LIMIT 10;-- Can be adjusted to show more or fewer categories
 
 
 -- name: DailySpending :many
