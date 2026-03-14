@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"strconv"
@@ -129,6 +130,13 @@ func handleCreateTransaction(c echo.Context) error {
 		})
 	}
 
+	category, err := m.queries.GetMostCommonCategory(context.Background(), sql.NullString{String: input.Description, Valid: true})
+	if err != nil {
+		m.log.Error("Error retrieving most common category", "error", err)
+		return c.JSON(http.StatusInternalServerError, Resp{Error: "Error retrieving most common category"})
+	}
+
+	input.Category = category
 	input.Envelope = "default"
 
 	transactions := models.Transactions{

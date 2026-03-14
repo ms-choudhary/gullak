@@ -33,6 +33,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteTransactionStmt, err = db.PrepareContext(ctx, deleteTransaction); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteTransaction: %w", err)
 	}
+	if q.getMostCommonCategoryStmt, err = db.PrepareContext(ctx, getMostCommonCategory); err != nil {
+		return nil, fmt.Errorf("error preparing query GetMostCommonCategory: %w", err)
+	}
 	if q.getTransactionStmt, err = db.PrepareContext(ctx, getTransaction); err != nil {
 		return nil, fmt.Errorf("error preparing query GetTransaction: %w", err)
 	}
@@ -75,6 +78,11 @@ func (q *Queries) Close() error {
 	if q.deleteTransactionStmt != nil {
 		if cerr := q.deleteTransactionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteTransactionStmt: %w", cerr)
+		}
+	}
+	if q.getMostCommonCategoryStmt != nil {
+		if cerr := q.getMostCommonCategoryStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getMostCommonCategoryStmt: %w", cerr)
 		}
 	}
 	if q.getTransactionStmt != nil {
@@ -159,6 +167,7 @@ type Queries struct {
 	createTransactionStmt         *sql.Stmt
 	dailySpendingStmt             *sql.Stmt
 	deleteTransactionStmt         *sql.Stmt
+	getMostCommonCategoryStmt     *sql.Stmt
 	getTransactionStmt            *sql.Stmt
 	listCategoriesStmt            *sql.Stmt
 	listEnvelopesStmt             *sql.Stmt
@@ -176,6 +185,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createTransactionStmt:         q.createTransactionStmt,
 		dailySpendingStmt:             q.dailySpendingStmt,
 		deleteTransactionStmt:         q.deleteTransactionStmt,
+		getMostCommonCategoryStmt:     q.getMostCommonCategoryStmt,
 		getTransactionStmt:            q.getTransactionStmt,
 		listCategoriesStmt:            q.listCategoriesStmt,
 		listEnvelopesStmt:             q.listEnvelopesStmt,

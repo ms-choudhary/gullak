@@ -143,6 +143,23 @@ func (q *Queries) DeleteTransaction(ctx context.Context, id int64) error {
 	return err
 }
 
+const getMostCommonCategory = `-- name: GetMostCommonCategory :one
+SELECT category
+FROM transactions
+WHERE confirm = 1
+  AND (description LIKE '%' || ?1 || '%')
+GROUP BY category
+ORDER BY COUNT(*) DESC
+LIMIT 1
+`
+
+func (q *Queries) GetMostCommonCategory(ctx context.Context, description sql.NullString) (string, error) {
+	row := q.queryRow(ctx, q.getMostCommonCategoryStmt, getMostCommonCategory, description)
+	var category string
+	err := row.Scan(&category)
+	return category, err
+}
+
 const getTransaction = `-- name: GetTransaction :one
 SELECT id, created_at, transaction_date, currency, amount, category, envelope, description, confirm FROM transactions WHERE id = ?
 `

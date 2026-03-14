@@ -87,3 +87,12 @@ WHERE envelope != ''
   AND (:start_date IS NULL OR transaction_date >= :start_date)
   AND (:end_date IS NULL OR transaction_date <= :end_date)
 ORDER BY transaction_date DESC;
+
+-- name: GetMostCommonCategory :one
+SELECT category
+FROM transactions
+WHERE confirm = 1
+  AND (description LIKE '%' || :description || '%')
+GROUP BY category
+ORDER BY COUNT(*) DESC
+LIMIT 1;
