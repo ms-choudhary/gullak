@@ -132,8 +132,9 @@ func handleCreateTransaction(c echo.Context) error {
 
 	category, err := m.queries.GetMostCommonCategory(context.Background(), sql.NullString{String: input.Description, Valid: true})
 	if err != nil {
+		// just log error, but donot fail
+		category = ""
 		m.log.Error("Error retrieving most common category", "error", err)
-		return c.JSON(http.StatusInternalServerError, Resp{Error: "Error retrieving most common category"})
 	}
 
 	input.Category = category
