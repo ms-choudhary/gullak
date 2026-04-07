@@ -19,7 +19,7 @@ RUN make build
 FROM ubuntu:24.04
 # Update and install necessary packages
 RUN apt-get update && \
-    apt-get install -y ca-certificates && \
+    apt-get install -y ca-certificates sqlite3 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
