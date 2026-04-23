@@ -17,5 +17,6 @@ type Transaction struct {
 	Category        string    `json:"category"`
 	Envelope        string    `json:"envelope"`
 	Description     string    `json:"description"`
+	MessageID       string    `json:"message_id"`
 	Confirm         bool      `json:"confirm"`
 }

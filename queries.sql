@@ -1,7 +1,17 @@
 -- name: CreateTransaction :many
 -- Inserts a new transaction into the database.
-INSERT INTO transactions (created_at, transaction_date, amount, currency, category, envelope, description, confirm)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT OR IGNORE INTO transactions (
+    created_at,
+    transaction_date,
+    amount,
+    currency,
+    category,
+    envelope,
+    description,
+    confirm,
+    message_id
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: ListTransactions :many
@@ -17,7 +27,9 @@ ORDER BY transaction_date DESC, created_at DESC;
 
 -- name: GetTransaction :one
 -- Retrieves a single transaction by ID.
-SELECT * FROM transactions WHERE id = ?;
+SELECT *
+FROM transactions
+WHERE id = ?;
 
 -- name: UpdateTransaction :exec
 -- Updates a transaction by ID.

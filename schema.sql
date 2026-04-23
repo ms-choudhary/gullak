@@ -7,5 +7,10 @@ CREATE TABLE IF NOT EXISTS transactions (
     category TEXT NOT NULL,
     envelope TEXT NOT NULL DEFAULT 'default',
     description TEXT NOT NULL DEFAULT '',
+    message_id TEXT NOT NULL DEFAULT '',
     confirm BOOLEAN NOT NULL DEFAULT false
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_message_id
+ON transactions(message_id)
+WHERE message_id != '';

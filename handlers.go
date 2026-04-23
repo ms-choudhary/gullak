@@ -167,6 +167,13 @@ func handleCreateTransaction(c echo.Context) error {
 		})
 	}
 
+	if input.MessageID != "" && len(savedTransactions) == 0 {
+		return c.JSON(http.StatusOK, Resp{
+			Message: "Duplicate transaction ignored",
+			Data:    savedTransactions,
+		})
+	}
+
 	return c.JSON(http.StatusOK, Resp{
 		Message: "Expenses saved",
 		Data:    savedTransactions,

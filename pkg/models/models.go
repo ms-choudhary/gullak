@@ -9,6 +9,7 @@ type Item struct {
 	Category        string  `json:"category"`
 	Envelope        string  `json:"envelope"`
 	Description     string  `json:"description"`
+	MessageID       string  `json:"message_id,omitempty"`
 	Confirm         bool    `json:"confirm"`
 }
 

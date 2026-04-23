@@ -30,8 +30,13 @@ func createTableSQL(currency string) string {
             category TEXT NOT NULL,
             envelope TEXT NOT NULL DEFAULT 'default',
             description TEXT NOT NULL DEFAULT '',
+            message_id TEXT NOT NULL DEFAULT '',
             confirm BOOLEAN NOT NULL DEFAULT false
         );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_message_id
+        ON transactions(message_id)
+        WHERE message_id != '';
     `, currency)
 }
 
@@ -86,6 +91,7 @@ func (a *App) Save(transactions models.Transactions) ([]db.Transaction, error) {
 			Category:        item.Category,
 			Envelope:        item.Envelope,
 			Description:     item.Description,
+			MessageID:       item.MessageID,
 		}
 
 		savedTx, err := a.queries.CreateTransaction(context.TODO(), arg)

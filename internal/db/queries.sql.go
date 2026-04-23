@@ -13,9 +13,19 @@ import (
 )
 
 const createTransaction = `-- name: CreateTransaction :many
-INSERT INTO transactions (created_at, transaction_date, amount, currency, category, envelope, description, confirm)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, created_at, transaction_date, currency, amount, category, envelope, description, confirm
+INSERT OR IGNORE INTO transactions (
+    created_at,
+    transaction_date,
+    amount,
+    currency,
+    category,
+    envelope,
+    description,
+    confirm,
+    message_id
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, created_at, transaction_date, currency, amount, category, envelope, description, message_id, confirm
 `
 
 type CreateTransactionParams struct {
@@ -27,6 +37,7 @@ type CreateTransactionParams struct {
 	Envelope        string    `json:"envelope"`
 	Description     string    `json:"description"`
 	Confirm         bool      `json:"confirm"`
+	MessageID       string    `json:"message_id"`
 }
 
 // Inserts a new transaction into the database.
@@ -40,6 +51,7 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 		arg.Envelope,
 		arg.Description,
 		arg.Confirm,
+		arg.MessageID,
 	)
 	if err != nil {
 		return nil, err
@@ -57,6 +69,7 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 			&i.Category,
 			&i.Envelope,
 			&i.Description,
+			&i.MessageID,
 			&i.Confirm,
 		); err != nil {
 			return nil, err
@@ -161,7 +174,9 @@ func (q *Queries) GetMostCommonCategory(ctx context.Context, description sql.Nul
 }
 
 const getTransaction = `-- name: GetTransaction :one
-SELECT id, created_at, transaction_date, currency, amount, category, envelope, description, confirm FROM transactions WHERE id = ?
+SELECT id, created_at, transaction_date, currency, amount, category, envelope, description, message_id, confirm
+FROM transactions
+WHERE id = ?
 `
 
 // Retrieves a single transaction by ID.
@@ -177,6 +192,7 @@ func (q *Queries) GetTransaction(ctx context.Context, id int64) (Transaction, er
 		&i.Category,
 		&i.Envelope,
 		&i.Description,
+		&i.MessageID,
 		&i.Confirm,
 	)
 	return i, err
@@ -282,7 +298,7 @@ func (q *Queries) ListEnvelopesBetweenDates(ctx context.Context, arg ListEnvelop
 }
 
 const listTransactions = `-- name: ListTransactions :many
-SELECT id, created_at, transaction_date, currency, amount, category, envelope, description, confirm
+SELECT id, created_at, transaction_date, currency, amount, category, envelope, description, message_id, confirm 
 FROM transactions
 WHERE (?1 IS NULL OR confirm = ?1)
   AND (?2 IS NULL OR transaction_date >= ?2)
@@ -333,6 +349,7 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 			&i.Category,
 			&i.Envelope,
 			&i.Description,
+			&i.MessageID,
 			&i.Confirm,
 		); err != nil {
 			return nil, err
