@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/mr-karan/gullak/internal/db"
-	"github.com/mr-karan/gullak/internal/llm"
 	"github.com/mr-karan/gullak/pkg/models"
 )
 
@@ -39,43 +40,137 @@ func handleIndex(c echo.Context) error {
 	})
 }
 
-func handleCreateTransaction(c echo.Context) error {
+func handleListCategories(c echo.Context) error {
 	m := c.Get("app").(*App)
-	var input ExpenseInput
-	if err := c.Bind(&input); err != nil {
-		m.log.Error("Error binding input", "error", err)
-		return c.JSON(http.StatusBadRequest, Resp{
-			Error: "Error saving expenses",
+
+	categories, err := m.queries.ListCategories(context.Background())
+	if err != nil {
+		m.log.Error("Error retrieving categories", "error", err)
+		return c.JSON(http.StatusInternalServerError, Resp{Error: "Error retrieving categories"})
+	}
+
+	return c.JSON(http.StatusOK, Resp{
+		Data:    categories,
+		Message: "Categories retrieved",
+	})
+}
+
+func handleListEnvelopes(c echo.Context) error {
+	m := c.Get("app").(*App)
+	startDateStr := c.QueryParam("start_date")
+	endDateStr := c.QueryParam("end_date")
+
+	if startDateStr == "" || endDateStr == "" {
+		envelopes, err := m.queries.ListEnvelopes(context.Background())
+		if err != nil {
+			m.log.Error("Error retrieving envelopes", "error", err)
+			return c.JSON(http.StatusInternalServerError, Resp{Error: "Error retrieving envelopes"})
+		}
+		return c.JSON(http.StatusOK, Resp{
+			Data:    envelopes,
+			Message: "Envelopes retrieved",
 		})
 	}
 
-	if input.Line == "" {
+	// Parse start date and end date strings into time.Time
+	startDate, err := time.Parse("2006-01-02", startDateStr)
+	if err != nil {
+		m.log.Error("Invalid start date", "error", err)
+		return c.JSON(http.StatusBadRequest, Resp{
+			Error: "Invalid start date format, use YYYY-MM-DD",
+		})
+	}
+
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		m.log.Error("Invalid end date", "error", err)
+		return c.JSON(http.StatusBadRequest, Resp{
+			Error: "Invalid end date format, use YYYY-MM-DD",
+		})
+	}
+
+	// Validate the date range
+	if err := validateDateRange(startDate, endDate); err != nil {
+		return c.JSON(http.StatusBadRequest, Resp{
+			Error: err.Error(),
+		})
+	}
+
+	params := db.ListEnvelopesBetweenDatesParams{
+		StartDate: startDate,
+		EndDate:   endDate,
+	}
+
+	envelopes, err := m.queries.ListEnvelopesBetweenDates(context.Background(), params)
+	if err != nil {
+		m.log.Error("Error retrieving envelopes between dates", "error", err)
+		return c.JSON(http.StatusInternalServerError, Resp{Error: "Error retrieving envelopes between dates"})
+	}
+
+	return c.JSON(http.StatusOK, Resp{
+		Data:    envelopes,
+		Message: "Envelopes retrieved",
+	})
+}
+
+func handleCreateTransaction(c echo.Context) error {
+	m := c.Get("app").(*App)
+	var input models.Item
+	if err := c.Bind(&input); err != nil {
+		m.log.Error("Error binding input", "error", err)
+		return c.JSON(http.StatusBadRequest, Resp{
+			Error: "Invalid input",
+		})
+	}
+
+	if input.Amount == 0 || input.Description == "" {
 		m.log.Error("Empty input", "error", errors.New("empty input"))
 		return c.JSON(http.StatusBadRequest, Resp{
 			Error: "Empty input",
 		})
 	}
 
-	transactions, err := m.llm.Parse(input.Line)
+	category, err := m.queries.GetMostCommonCategory(context.Background(), sql.NullString{String: input.Description, Valid: true})
 	if err != nil {
-		var noTxErr *llm.NoValidTransactionError
-		if errors.As(err, &noTxErr) {
-			m.log.Error("No valid transactions found", "error", noTxErr)
-			return c.JSON(http.StatusBadRequest, Resp{
-				Error: noTxErr.Error(),
-			})
-		}
-		m.log.Error("Error parsing expenses", "error", err)
-		return c.JSON(http.StatusBadRequest, Resp{
-			Error: "Error parsing expenses",
-		})
+		// just log error, but donot fail
+		category = ""
+		m.log.Error("Error retrieving most common category", "error", err)
 	}
+
+	input.Category = category
+	input.Envelope = "default"
+
+	transactions := models.Transactions{
+		Transactions: []models.Item{input},
+	}
+
+	//transactions, err := m.llm.Parse(input.Line)
+	//if err != nil {
+	//var noTxErr *llm.NoValidTransactionError
+	//if errors.As(err, &noTxErr) {
+	//m.log.Error("No valid transactions found", "error", noTxErr)
+	//return c.JSON(http.StatusBadRequest, Resp{
+	//Error: noTxErr.Error(),
+	//})
+	//}
+	//m.log.Error("Error parsing expenses", "error", err)
+	//return c.JSON(http.StatusBadRequest, Resp{
+	//Error: "Error parsing expenses",
+	//})
+	//}
 
 	savedTransactions, err := m.Save(transactions)
 	if err != nil {
 		m.log.Error("Error saving transactions", "error", err)
 		return c.JSON(http.StatusInternalServerError, Resp{
 			Error: "Error saving transactions",
+		})
+	}
+
+	if input.MessageID != "" && len(savedTransactions) == 0 {
+		return c.JSON(http.StatusOK, Resp{
+			Message: "Duplicate transaction ignored",
+			Data:    savedTransactions,
 		})
 	}
 
@@ -133,6 +228,20 @@ func handleListTransactions(c echo.Context) error {
 				Error: err.Error(),
 			})
 		}
+	}
+
+	envelopesStr := c.QueryParam("envelopes")
+	if envelopesStr == "" && (params.Confirm != nil && !params.Confirm.(bool)) {
+		envelopesStr = "default"
+	}
+	params.Envelopes = strings.Split(envelopesStr, ",")
+
+	// Handle category filter
+	categoryStr := c.QueryParam("category")
+	if categoryStr != "" {
+		params.Category = categoryStr
+	} else {
+		params.Category = nil // Explicitly setting as nil if not provided
 	}
 
 	transactions, err := m.queries.ListTransactions(context.Background(), params)
@@ -206,6 +315,7 @@ func handleUpdateTransaction(c echo.Context) error {
 		Amount:          input.Amount,
 		Currency:        input.Currency,
 		Category:        input.Category,
+		Envelope:        input.Envelope,
 		Description:     input.Description,
 		Confirm:         input.Confirm,
 		TransactionDate: transactionDate,
@@ -284,9 +394,12 @@ func handleTopExpenseCategories(c echo.Context) error {
 		})
 	}
 
+	envelopes := strings.Split(c.QueryParam("envelopes"), ",")
+
 	params := db.TopExpenseCategoriesParams{
 		StartDate: startDate,
 		EndDate:   endDate,
+		Envelopes: envelopes,
 	}
 
 	rawCategories, err := m.queries.TopExpenseCategories(context.Background(), params)
@@ -350,9 +463,12 @@ func handleDailySpending(c echo.Context) error {
 		})
 	}
 
+	envelopes := strings.Split(c.QueryParam("envelopes"), ",")
+
 	params := db.DailySpendingParams{
 		StartDate: startDate,
 		EndDate:   endDate,
+		Envelopes: envelopes,
 	}
 
 	rawSpending, err := m.queries.DailySpending(context.Background(), params)

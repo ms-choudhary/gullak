@@ -60,6 +60,8 @@ func initApp(addr string, timeout time.Duration, static fs.FS, queries *db.Queri
 	e.DELETE("/api/transactions/:id", handleDeleteTransaction)               // Deletes a specific transaction by ID
 	e.GET("/api/reports/top-expense-categories", handleTopExpenseCategories) // Retrieves top expense categories
 	e.GET("/api/reports/daily-spending", handleDailySpending)                // Retrieves spending for a specific day
+	e.GET("/api/categories", handleListCategories)
+	e.GET("/api/envelopes", handleListEnvelopes)
 	// e.GET("/api/reports/monthly-spending-summary", handleMonthlySpendingSummary) // Retrieves spending summary by month
 
 	// Middleware to serve the static files.

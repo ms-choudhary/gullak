@@ -3,12 +3,14 @@ import { ref } from 'vue'
 import axios from 'axios'
 
 const TRANSACTIONS_BASE_URL = '/api/transactions'
+const CATEGORIES_BASE_URL = '/api/categories'
+const ENVELOPES_BASE_URL = '/api/envelopes'
 const REPORTS_BASE_URL = '/api/reports'
 
 export const useTransactionStore = defineStore('transaction', () => {
   const isLoading = ref(false)
 
-  async function fetchTransactions(confirmed = true, startDate = null, endDate = null) {
+  async function fetchTransactions(confirmed = true, startDate = null, endDate = null, envelopes = null, category = null) {
     isLoading.value = true
     try {
       const params = { confirm: confirmed }
@@ -18,6 +20,12 @@ export const useTransactionStore = defineStore('transaction', () => {
       if (endDate && endDate.trim() !== '') {
         params.end_date = endDate
       }
+      if (envelopes && envelopes.length > 0) {
+        params.envelopes = envelopes.join(',')
+      }
+      if (category && category.trim() !== '') {
+        params.category = category
+      }
       const response = await axios.get(TRANSACTIONS_BASE_URL, { params })
       return response.data.data
     } finally {
@@ -25,10 +33,40 @@ export const useTransactionStore = defineStore('transaction', () => {
     }
   }
 
-  async function createTransaction(line) {
+  async function fetchCategories() {
     isLoading.value = true
     try {
-      await axios.post(TRANSACTIONS_BASE_URL, { line, confirm: false })
+      const response = await axios.get(CATEGORIES_BASE_URL)
+      return response.data.data
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function fetchEnvelopes(startDate = null, endDate = null) {
+    isLoading.value = true
+    try {
+      const response = await axios.get(ENVELOPES_BASE_URL, {
+        params: { 
+          start_date: startDate, 
+          end_date: endDate,
+        },
+      })
+      return response.data.data
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function createTransaction(transactionData) {
+    isLoading.value = true
+    try {
+      const payload = {
+        amount: transactionData.amount,
+        description: transactionData.description,
+        confirm: false
+      }
+      await axios.post(TRANSACTIONS_BASE_URL, payload)
     } finally {
       isLoading.value = false;
     }
@@ -52,13 +90,14 @@ export const useTransactionStore = defineStore('transaction', () => {
     }
   }
 
-  async function fetchTopExpenseCategories(startDate, endDate) {
+  async function fetchTopExpenseCategories(startDate, endDate, envelopes = null) {
     isLoading.value = true;
     try {
       const response = await axios.get(`${REPORTS_BASE_URL}/top-expense-categories`, {
         params: {
           start_date: startDate,
           end_date: endDate,
+          envelopes: envelopes && envelopes.length > 0 ? envelopes.join(',') : '',
         },
       });
       return response.data.data;
@@ -67,11 +106,15 @@ export const useTransactionStore = defineStore('transaction', () => {
     }
   }
 
-  async function fetchDailySpending(startDate, endDate) {
+  async function fetchDailySpending(startDate, endDate, envelopes = null) {
     isLoading.value = true;
     try {
       const response = await axios.get(`${REPORTS_BASE_URL}/daily-spending`, {
-        params: { start_date: startDate, end_date: endDate },
+        params: { 
+          start_date: startDate, 
+          end_date: endDate,
+          envelopes: envelopes && envelopes.length > 0 ? envelopes.join(',') : '',
+        },
       });
       return response.data.data;
     } finally {
@@ -82,6 +125,8 @@ export const useTransactionStore = defineStore('transaction', () => {
   return {
     isLoading,
     fetchTransactions,
+    fetchCategories,
+    fetchEnvelopes,
     createTransaction,
     deleteTransaction,
     updateTransaction,

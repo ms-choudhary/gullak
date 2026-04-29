@@ -3,12 +3,14 @@
 import { ref, onMounted } from 'vue'
 import { showToast } from '@/utils/common'
 import { useTransactionStore } from '@/stores/transactions'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Loader } from 'lucide-vue-next'
 import TransactionTable from '@/components/TransactionTable.vue'
 
-const inputValue = ref('')
+const amount = ref('')
+const description = ref('')
 const transactionStore = useTransactionStore()
 const unconfirmedTransactions = ref([])
 
@@ -26,10 +28,15 @@ const fetchUnconfirmedTransactions = async () => {
 
 const handleSubmit = async () => {
   try {
-    await transactionStore.createTransaction(inputValue.value)
+    const transactionData = {
+      amount: parseFloat(amount.value),
+      description: description.value
+    }
+    await transactionStore.createTransaction(transactionData)
     await fetchUnconfirmedTransactions()
     showToast('Transaction saved. Please confirm!', '', false)
-    inputValue.value = ''
+    amount.value = ''
+    description.value = ''
   } catch (error) {
     showToast('Error saving transaction.', error.response?.data?.error || error.message, true)
   }
@@ -62,20 +69,28 @@ const deleteTransactionHandler = async (transaction) => {
     <div class="info mb-6">
       <h1 class="text-2xl font-bold">Add a new transaction</h1>
       <p class="text-gray-400">
-        You can add a small description of your expenses and even add multiple expenses...
+        Enter the amount and description for your transaction.
       </p>
     </div>
     <div class="form">
       <form @submit.prevent="handleSubmit" class="flex flex-col items-center space-y-4">
-        <Textarea
-          class="w-full textarea textarea-bordered"
-          placeholder="Spent 400 on groceries, 500 on eating out, 1000 for petrol."
-          v-model="inputValue"
-          minlength="5"
-          maxlength="1000"
+        <Input
+          class="w-full"
+          type="number"
+          step="0.01"
+          placeholder="Amount (e.g., 400.50)"
+          v-model="amount"
           required
         />
-        <Button :disabled="transactionStore.isLoading">
+        <Textarea
+          class="w-full textarea textarea-bordered"
+          placeholder="Description (e.g., Groceries from supermarket)"
+          v-model="description"
+          minlength="3"
+          maxlength="500"
+          required
+        />
+        <Button :disabled="transactionStore.isLoading || !amount || !description">
           <Loader v-if="transactionStore.isLoading" class="mr-2 h-4 w-4 animate-spin" />
           Save transaction
         </Button>

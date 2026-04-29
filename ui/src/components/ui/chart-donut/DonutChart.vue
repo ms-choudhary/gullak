@@ -26,6 +26,8 @@ const props = defineProps({
 }
 );
 
+const emit = defineEmits(['categorySelected']);
+
 
 const category = computed(() => props.category);
 const index = computed(() => props.index);
@@ -58,12 +60,16 @@ const totalValue = computed(() => props.data.reduce((prev, curr) => {
               if (d?.data?.[index] === activeSegmentKey) {
                 activeSegmentKey = undefined;
                 elements.forEach((el) => (el.style.opacity = '1'));
+                // Emit null to clear the filter
+                emit('categorySelected', null);
               } else {
                 activeSegmentKey = d?.data?.[index];
                 elements.forEach(
                   (el) => (el.style.opacity = `${filterOpacity}`),
                 );
                 elements[i].style.opacity = '1';
+                // Emit the selected category
+                emit('categorySelected', d?.data?.[index]);
               }
             },
           },

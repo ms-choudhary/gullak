@@ -6,6 +6,7 @@ import { CurveType } from '@unovis/ts';
 import { showToast } from '@/utils/common'
 import DateRangePicker from '@/components/DateRangePicker.vue';
 import TransactionTable from '@/components/TransactionTable.vue';
+import Filter from '@/components/Filter.vue';
 import { useTransactionStore } from '@/stores/transactions';
 
 const isMounted = ref(false);
@@ -13,17 +14,24 @@ const transactionStore = useTransactionStore();
 const categoriesData = ref([]);
 const dailyData = ref([]);
 const transactions = ref([]);
+const selectedEnvelopes = ref<string[]>([]);
+const availableEnvelopes = ref<string[]>([]);
+const selectedCategory = ref<string | null>(null);
+
+const today = new Date();
+const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
 const dateRange = ref({
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),  // 30 days ago
-    end: new Date().toISOString().slice(0, 10)  // Today
+    start: `${startOfMonth.getFullYear()}-${String(startOfMonth.getMonth() + 1).padStart(2, '0')}-${String(startOfMonth.getDate()).padStart(2, '0')}`,  // Start of current month
+    end: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`  // Today
 });
 
 const fetchData = async () => {
     try {
         const [dailySpending, categories, transData] = await Promise.all([
-            transactionStore.fetchDailySpending(dateRange.value.start, dateRange.value.end),
-            transactionStore.fetchTopExpenseCategories(dateRange.value.start, dateRange.value.end),
-            transactionStore.fetchTransactions(true, dateRange.value.start, dateRange.value.end)
+            transactionStore.fetchDailySpending(dateRange.value.start, dateRange.value.end, selectedEnvelopes.value),
+            transactionStore.fetchTopExpenseCategories(dateRange.value.start, dateRange.value.end, selectedEnvelopes.value),
+            transactionStore.fetchTransactions(true, dateRange.value.start, dateRange.value.end, selectedEnvelopes.value, selectedCategory.value)
         ]);
         dailyData.value = dailySpending.map(day => ({
             transaction_date: day.transaction_date,
@@ -34,6 +42,20 @@ const fetchData = async () => {
             total: item.total_spent
         }));
         transactions.value = transData;
+    } catch (error) {
+        showToast('Error fetching data.', error.response?.data?.error || error.message, true);
+    }
+}
+
+const fetchTableData = async () => {
+    try {
+        transactions.value = await transactionStore.fetchTransactions(
+            true, 
+            dateRange.value.start, 
+            dateRange.value.end, 
+            selectedEnvelopes.value, 
+            selectedCategory.value
+        );
     } catch (error) {
         showToast('Error fetching data.', error.response?.data?.error || error.message, true);
     }
@@ -59,25 +81,49 @@ const deleteTransactionHandler = async (transaction) => {
     }
 }
 
+const fetchAvailableEnvelopes = async () => {
+    try {
+        const envelopesArr = await transactionStore.fetchEnvelopes(dateRange.value.start, dateRange.value.end)
+				console.log(envelopesArr)
+        availableEnvelopes.value = envelopesArr
+    } catch (error) {
+        showToast('Error fetching data.', error.response?.data?.error || error.message, true);
+    }
+}
+
 // When the date range is updated, fetch new data.
 const handleDateRangeUpdate = (newDates) => {
     dateRange.value = { ...dateRange.value, start: newDates.start, end: newDates.end };
+    fetchAvailableEnvelopes();
     fetchData();
 };
 
-onMounted(fetchData);
-watch(dateRange, fetchData, { deep: true });
+const handleEnvelopeFilterUpdate = (envelopes: string[]) => {
+    selectedEnvelopes.value = envelopes;
+    fetchData();
+};
+
+const handleCategoryFilter = (category: string | null) => {
+    selectedCategory.value = category;
+    fetchTableData();
+};
+
+onMounted(() => {
+  fetchAvailableEnvelopes();
+  fetchData();
+});
 </script>
 
 <template>
     <section class="p-6">
         <div class="flex flex-wrap items-center justify-between py-4">
             <h1 class="text-2xl font-semibold text-gray-800 flex-1">Dashboard Overview</h1>
+            <Filter :envelopes="availableEnvelopes" @update:selectedEnvelopes="handleEnvelopeFilterUpdate"/>
             <DateRangePicker v-model="dateRange" @update:dateRange="handleDateRangeUpdate" class="flex-initial" />
         </div>
         <div class="charts mt-4 flex flex-wrap justify-center items-stretch">
             <div class="w-full md:w-1/2 p-2">
-                <DonutChart :data="categoriesData" index="name" :category="'total'" class="w-full h-full" />
+                <DonutChart :data="categoriesData" index="name" :category="'total'" class="w-full h-full" @categorySelected="handleCategoryFilter" />
             </div>
             <div class="w-full md:w-1/2 p-2">
                 <AreaChart :data="dailyData" index="transaction_date" :categories="['total_spent']"
@@ -86,7 +132,14 @@ watch(dateRange, fetchData, { deep: true });
             </div>
         </div>
         <div class="transactions mt-4">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Transactions Log</h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Transactions Log</h2>
+                <div v-if="selectedCategory" class="flex items-center gap-2">
+                    <span class="text-sm text-gray-600">Filtered by category:</span>
+                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">{{ selectedCategory }}</span>
+                    <button @click="handleCategoryFilter(null)" class="text-sm text-red-600 hover:text-red-800 underline">Clear filter</button>
+                </div>
+            </div>
             <TransactionTable :transactions="transactions" :on-delete="deleteTransactionHandler"
                 :on-save="saveTransactionHandler" />
         </div>
