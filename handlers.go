@@ -14,6 +14,8 @@ import (
 	"github.com/mr-karan/gullak/pkg/models"
 )
 
+const SourceManual = "Cash"
+
 type ExpenseInput struct {
 	Line string `json:"line"`
 }
@@ -139,6 +141,10 @@ func handleCreateTransaction(c echo.Context) error {
 
 	input.Category = category
 	input.Envelope = "default"
+
+	if input.Source == "" {
+		input.Source = SourceManual
+	}
 
 	transactions := models.Transactions{
 		Transactions: []models.Item{input},

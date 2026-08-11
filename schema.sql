@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     envelope TEXT NOT NULL DEFAULT 'default',
     description TEXT NOT NULL DEFAULT '',
     message_id TEXT NOT NULL DEFAULT '',
-    confirm BOOLEAN NOT NULL DEFAULT false
+    confirm BOOLEAN NOT NULL DEFAULT false,
+    source TEXT NOT NULL DEFAULT ''
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_message_id

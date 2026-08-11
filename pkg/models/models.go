@@ -11,6 +11,7 @@ type Item struct {
 	Description     string  `json:"description"`
 	MessageID       string  `json:"message_id,omitempty"`
 	Confirm         bool    `json:"confirm"`
+	Source          string  `json:"source,omitempty"`
 }
 
 type Transactions struct {

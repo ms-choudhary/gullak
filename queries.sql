@@ -9,9 +9,10 @@ INSERT OR IGNORE INTO transactions (
     envelope,
     description,
     confirm,
-    message_id
+    message_id,
+    source
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: ListTransactions :many

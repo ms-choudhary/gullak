@@ -19,4 +19,5 @@ type Transaction struct {
 	Description     string    `json:"description"`
 	MessageID       string    `json:"message_id"`
 	Confirm         bool      `json:"confirm"`
+	Source          string    `json:"source"`
 }

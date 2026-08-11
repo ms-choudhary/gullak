@@ -31,7 +31,8 @@ func createTableSQL(currency string) string {
             envelope TEXT NOT NULL DEFAULT 'default',
             description TEXT NOT NULL DEFAULT '',
             message_id TEXT NOT NULL DEFAULT '',
-            confirm BOOLEAN NOT NULL DEFAULT false
+            confirm BOOLEAN NOT NULL DEFAULT false,
+            source TEXT NOT NULL DEFAULT ''
         );
 
         CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_message_id
@@ -92,6 +93,7 @@ func (a *App) Save(transactions models.Transactions) ([]db.Transaction, error) {
 			Envelope:        item.Envelope,
 			Description:     item.Description,
 			MessageID:       item.MessageID,
+			Source:          item.Source,
 		}
 
 		savedTx, err := a.queries.CreateTransaction(context.TODO(), arg)
@@ -119,6 +121,7 @@ func (a *App) Get(id int64) (models.Item, error) {
 		Envelope:        transaction.Envelope,
 		Description:     transaction.Description,
 		Confirm:         transaction.Confirm,
+		Source:          transaction.Source,
 	}, nil
 }
 
