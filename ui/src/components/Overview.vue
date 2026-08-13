@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { DonutChart } from '@/components/ui/chart-donut';
 import { AreaChart } from '@/components/ui/chart-area'
 import { CurveType } from '@unovis/ts';
@@ -7,6 +7,7 @@ import { showToast } from '@/utils/common'
 import DateRangePicker from '@/components/DateRangePicker.vue';
 import TransactionTable from '@/components/TransactionTable.vue';
 import Filter from '@/components/Filter.vue';
+import SearchFilters from '@/components/SearchFilters.vue';
 import { useTransactionStore } from '@/stores/transactions';
 
 const isMounted = ref(false);
@@ -17,6 +18,32 @@ const transactions = ref([]);
 const selectedEnvelopes = ref<string[]>([]);
 const availableEnvelopes = ref<string[]>([]);
 const selectedCategory = ref<string | null>(null);
+
+// Client-side filters over the transactions already loaded in the table.
+const descriptionQuery = ref('');
+const sourceFilter = ref<string | null>(null); // null = every source
+
+const availableSources = computed(() =>
+    [...new Set(transactions.value.map(t => t.source ?? ''))].sort()
+);
+
+const visibleTransactions = computed(() => {
+    const query = descriptionQuery.value.trim().toLowerCase();
+    return transactions.value.filter(t => {
+        const matchesQuery = !query || (t.description ?? '').toLowerCase().includes(query);
+        const matchesSource = sourceFilter.value === null || (t.source ?? '') === sourceFilter.value;
+        return matchesQuery && matchesSource;
+    });
+});
+
+const isFiltering = computed(() => descriptionQuery.value.trim() !== '' || sourceFilter.value !== null);
+
+// A refetch can drop the source that is currently selected; fall back to showing everything.
+watch(availableSources, (sources) => {
+    if (sourceFilter.value !== null && !sources.includes(sourceFilter.value)) {
+        sourceFilter.value = null;
+    }
+});
 
 const today = new Date();
 const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -132,7 +159,7 @@ onMounted(() => {
             </div>
         </div>
         <div class="transactions mt-4">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <h2 class="text-2xl font-semibold text-gray-800">Transactions Log</h2>
                 <div v-if="selectedCategory" class="flex items-center gap-2">
                     <span class="text-sm text-gray-600">Filtered by category:</span>
@@ -140,7 +167,14 @@ onMounted(() => {
                     <button @click="handleCategoryFilter(null)" class="text-sm text-red-600 hover:text-red-800 underline">Clear filter</button>
                 </div>
             </div>
-            <TransactionTable :transactions="transactions" :on-delete="deleteTransactionHandler"
+            <div class="mb-4">
+                <SearchFilters v-model:search="descriptionQuery" v-model:source="sourceFilter"
+                    :sources="availableSources" />
+                <p v-if="isFiltering" class="mt-2 text-sm text-gray-600">
+                    Showing {{ visibleTransactions.length }} of {{ transactions.length }} transactions
+                </p>
+            </div>
+            <TransactionTable :transactions="visibleTransactions" :on-delete="deleteTransactionHandler"
                 :on-save="saveTransactionHandler" />
         </div>
     </section>
