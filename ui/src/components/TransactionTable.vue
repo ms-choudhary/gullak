@@ -183,7 +183,8 @@ const saveTransaction = () => {
               </Button>
             </PopoverTrigger>
             <PopoverContent class="w-auto p-0">
-              <Calendar v-model="localEditingTransaction.transaction_date" initial-focus />
+              <Calendar v-model="localEditingTransaction.transaction_date" caption-layout="dropdown"
+                initial-focus />
             </PopoverContent>
           </Popover>
           <span v-else>{{ dateFormatter.format(new Date(transaction.transaction_date.toString())) }}</span>
