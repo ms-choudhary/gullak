@@ -272,14 +272,14 @@ const saveTransaction = () => {
       </TableRow>
     </TableBody>
     <TableFooter v-if="totals.length">
-      <TableRow>
+      <TableRow class="font-bold">
         <TableCell>Total</TableCell>
         <TableCell>
           <div v-for="{ currency, total } in totals" :key="currency" class="whitespace-nowrap">
             {{ currency }}{{ total.toFixed(2) }}
           </div>
         </TableCell>
-        <TableCell :colspan="remainingColumns" class="text-muted-foreground font-normal">
+        <TableCell :colspan="remainingColumns" class="text-muted-foreground">
           {{ transactions.length }} {{ transactions.length === 1 ? 'transaction' : 'transactions' }}
         </TableCell>
       </TableRow>
