@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, defineProps, defineEmits } from 'vue';
+import { ref, computed, watch, defineProps, defineEmits } from 'vue';
 import { DateFormatter, parseDate } from '@internationalized/date';
 import TransactionActions from '@/components/Actions.vue';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Calendar as CalendarIcon } from 'lucide-vue-next';
+import { Calendar as CalendarIcon, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-vue-next';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/utils/utils';
@@ -51,6 +51,19 @@ const props = defineProps({
 const emit = defineEmits(['edit']);
 const localEditingTransaction = ref(null);
 const dateFormatter = new DateFormatter('en-US', { dateStyle: 'long' });
+
+// sorting by amount: null (original order) -> 'asc' -> 'desc' -> null
+const amountSort = ref<'asc' | 'desc' | null>(null);
+
+const toggleAmountSort = () => {
+  amountSort.value = amountSort.value === null ? 'asc' : amountSort.value === 'asc' ? 'desc' : null;
+};
+
+const sortedTransactions = computed(() => {
+  if (!amountSort.value) return props.transactions;
+  const direction = amountSort.value === 'asc' ? 1 : -1;
+  return [...props.transactions].sort((a, b) => (Number(a.amount) - Number(b.amount)) * direction);
+});
 
 // Correctly parse ISO string to CalendarDate
 const parseIsoToDate = (isoString) => {
@@ -127,7 +140,15 @@ const saveTransaction = () => {
     <TableHeader>
       <TableRow>
         <TableHead>Date</TableHead>
-        <TableHead>Amount</TableHead>
+        <TableHead>
+          <button type="button" class="flex items-center gap-1 font-medium hover:text-foreground"
+            :aria-label="`Sort by amount, currently ${amountSort ?? 'unsorted'}`" @click="toggleAmountSort">
+            Amount
+            <ArrowUp v-if="amountSort === 'asc'" class="h-4 w-4" />
+            <ArrowDown v-else-if="amountSort === 'desc'" class="h-4 w-4" />
+            <ArrowUpDown v-else class="h-4 w-4 opacity-50" />
+          </button>
+        </TableHead>
         <TableHead>Category</TableHead>
         <TableHead>Envelope</TableHead>
         <TableHead>Description</TableHead>
@@ -135,7 +156,7 @@ const saveTransaction = () => {
       </TableRow>
     </TableHeader>
     <TableBody>
-      <TableRow v-for="transaction in transactions" :key="transaction.id">
+      <TableRow v-for="transaction in sortedTransactions" :key="transaction.id">
         <TableCell>
           <Popover v-if="localEditingTransaction && localEditingTransaction.id === transaction.id">
             <PopoverTrigger as-child>
