@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
+  TableFooter,
   TableHead,
   TableCell,
   TableHeader,
@@ -64,6 +65,20 @@ const sortedTransactions = computed(() => {
   const direction = amountSort.value === 'asc' ? 1 : -1;
   return [...props.transactions].sort((a, b) => (Number(a.amount) - Number(b.amount)) * direction);
 });
+
+// Totals cover exactly the rows rendered, so whatever the caller filtered out is
+// already excluded. Amounts are summed per currency rather than pooled blindly.
+const totals = computed(() => {
+  const byCurrency = new Map<string, number>();
+  for (const transaction of props.transactions) {
+    const currency = transaction.currency ?? '';
+    byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + Number(transaction.amount));
+  }
+  return [...byCurrency.entries()].map(([currency, total]) => ({ currency, total }));
+});
+
+// Date + Amount are rendered separately; the rest of the header gets spanned.
+const remainingColumns = computed(() => (props.showConfirmButton ? 5 : 4));
 
 // Correctly parse ISO string to CalendarDate
 const parseIsoToDate = (isoString) => {
@@ -256,5 +271,18 @@ const saveTransaction = () => {
         </TableCell>
       </TableRow>
     </TableBody>
+    <TableFooter v-if="totals.length">
+      <TableRow>
+        <TableCell>Total</TableCell>
+        <TableCell>
+          <div v-for="{ currency, total } in totals" :key="currency" class="whitespace-nowrap">
+            {{ currency }}{{ total.toFixed(2) }}
+          </div>
+        </TableCell>
+        <TableCell :colspan="remainingColumns" class="text-muted-foreground font-normal">
+          {{ transactions.length }} {{ transactions.length === 1 ? 'transaction' : 'transactions' }}
+        </TableCell>
+      </TableRow>
+    </TableFooter>
   </Table>
 </template>
