@@ -57,7 +57,7 @@ const dateFormatter = new DateFormatter('en-US', { dateStyle: 'long' });
 const amountSort = ref<'asc' | 'desc' | null>(null);
 
 const toggleAmountSort = () => {
-  amountSort.value = amountSort.value === null ? 'asc' : amountSort.value === 'asc' ? 'desc' : null;
+  amountSort.value = amountSort.value === null ? 'desc' : amountSort.value === 'desc' ? 'asc' : null;
 };
 
 const sortedTransactions = computed(() => {
