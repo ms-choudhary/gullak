@@ -1,5 +1,5 @@
 <template>
-    <Popover>
+    <Popover v-model:open="isOpen">
         <PopoverTrigger as-child>
             <Button variant="outline"
                 :class="cn('w-full sm:w-[280px] justify-start text-left font-normal', !range.start && 'text-muted-foreground')">
@@ -13,14 +13,30 @@
             </Button>
         </PopoverTrigger>
         <PopoverContent class="w-auto max-w-[calc(100vw-2rem)] overflow-x-auto p-0">
+            <div class="flex gap-1 overflow-x-auto border-b p-2 sm:flex-wrap sm:overflow-x-visible">
+                <Button v-for="preset in presets" :key="preset.label" size="sm"
+                    :variant="activePreset === preset.label ? 'secondary' : 'ghost'"
+                    class="shrink-0 whitespace-nowrap" @click="applyPreset(preset)">
+                    {{ preset.label }}
+                </Button>
+            </div>
             <RangeCalendar v-model="range" :number-of-months="isDesktop ? 2 : 1" />
         </PopoverContent>
     </Popover>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { parseDate, type DateValue } from '@internationalized/date';
+import { computed, ref, watch } from 'vue';
+import {
+    endOfMonth,
+    endOfYear,
+    getLocalTimeZone,
+    parseDate,
+    startOfMonth,
+    startOfYear,
+    today,
+    type DateValue
+} from '@internationalized/date';
 import { useMediaQuery } from '@vueuse/core';
 import { CalendarIcon } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
@@ -34,6 +50,11 @@ interface CalendarRange {
     end: DateValue | undefined;
 }
 
+interface Preset {
+    label: string;
+    range: () => { start: DateValue; end: DateValue };
+}
+
 const props = defineProps<{
     modelValue: DateRange;
 }>();
@@ -43,11 +64,64 @@ const emits = defineEmits<{
 }>();
 
 const isDesktop = useMediaQuery('(min-width: 640px)');
+const isOpen = ref(false);
+
+const presets: Preset[] = [
+    {
+        label: 'This month',
+        range: () => {
+            const now = today(getLocalTimeZone());
+            return { start: startOfMonth(now), end: now };
+        }
+    },
+    {
+        label: 'Last month',
+        range: () => {
+            const lastMonth = today(getLocalTimeZone()).subtract({ months: 1 });
+            return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+        }
+    },
+    {
+        label: 'Last 3 months',
+        range: () => {
+            const now = today(getLocalTimeZone());
+            return { start: startOfMonth(now.subtract({ months: 2 })), end: now };
+        }
+    },
+    {
+        label: 'This year',
+        range: () => {
+            const now = today(getLocalTimeZone());
+            return { start: startOfYear(now), end: now };
+        }
+    },
+    {
+        label: 'Last year',
+        range: () => {
+            const lastYear = today(getLocalTimeZone()).subtract({ years: 1 });
+            return { start: startOfYear(lastYear), end: endOfYear(lastYear) };
+        }
+    }
+];
 
 const range = ref<CalendarRange>({
     start: parseDate(props.modelValue.start),
     end: parseDate(props.modelValue.end)
 });
+
+const activePreset = computed(() => {
+    const match = presets.find((preset) => {
+        const { start, end } = preset.range();
+        return range.value.start?.toString() === start.toString()
+            && range.value.end?.toString() === end.toString();
+    });
+    return match ? match.label : null;
+});
+
+const applyPreset = (preset: Preset) => {
+    range.value = preset.range();
+    isOpen.value = false;
+};
 
 // The range can also be set programmatically by the parent (selecting an envelope
 // expands it), so mirror incoming changes back into the calendar.
