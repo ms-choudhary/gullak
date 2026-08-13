@@ -12,11 +12,15 @@
                 </template>
             </Button>
         </PopoverTrigger>
-        <PopoverContent class="w-auto max-w-[calc(100vw-2rem)] overflow-x-auto p-0">
-            <div class="flex gap-1 overflow-x-auto border-b p-2 sm:flex-wrap sm:overflow-x-visible">
-                <Button v-for="preset in presets" :key="preset.label" size="sm"
+        <PopoverContent class="w-auto max-w-[calc(100vw-2rem)] p-0" :collision-padding="16">
+            <!-- Two columns on mobile so every preset stays reachable; a single scrolling
+                 row hid the later presets off the edge of narrow screens. -->
+            <div class="grid grid-cols-2 gap-1 border-b p-2 sm:flex sm:flex-wrap">
+                <Button v-for="(preset, index) in presets" :key="preset.label" size="sm"
                     :variant="activePreset === preset.label ? 'secondary' : 'ghost'"
-                    class="shrink-0 whitespace-nowrap" @click="applyPreset(preset)">
+                    :class="cn('w-full whitespace-nowrap sm:w-auto sm:shrink-0',
+                        isLastOnOwnRow(index) && 'col-span-2 sm:col-span-1')"
+                    @click="applyPreset(preset)">
                     {{ preset.label }}
                 </Button>
             </div>
@@ -117,6 +121,10 @@ const activePreset = computed(() => {
     });
     return match ? match.label : null;
 });
+
+// With an odd number of presets the last one would sit alone in the left column,
+// so let it span the full width instead.
+const isLastOnOwnRow = (index: number) => index === presets.length - 1 && presets.length % 2 === 1;
 
 const applyPreset = (preset: Preset) => {
     range.value = preset.range();
