@@ -2,17 +2,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { showToast } from '@/utils/common'
+import { describeError } from '@/utils/errors'
 import { useTransactionStore } from '@/stores/transactions'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Loader } from 'lucide-vue-next'
 import TransactionTable from '@/components/TransactionTable.vue'
+import type { Transaction } from '@/types/transaction'
 
 const amount = ref('')
 const description = ref('')
 const transactionStore = useTransactionStore()
-const unconfirmedTransactions = ref([])
+const unconfirmedTransactions = ref<Transaction[]>([])
 
 onMounted(async () => {
   await fetchUnconfirmedTransactions()
@@ -22,7 +24,7 @@ const fetchUnconfirmedTransactions = async () => {
   try {
     unconfirmedTransactions.value = await transactionStore.fetchTransactions(false)
   } catch (error) {
-    showToast('Error loading transactions.', error.response?.data?.error || error.message, true)
+    showToast('Error loading transactions.', describeError(error), true)
   }
 }
 
@@ -38,28 +40,28 @@ const handleSubmit = async () => {
     amount.value = ''
     description.value = ''
   } catch (error) {
-    showToast('Error saving transaction.', error.response?.data?.error || error.message, true)
+    showToast('Error saving transaction.', describeError(error), true)
   }
 }
 
-const confirmTransactionHandler = async (transaction) => {
+const confirmTransactionHandler = async (transaction: Transaction) => {
   transaction.confirm = true
   try {
     await transactionStore.updateTransaction(transaction)
     await fetchUnconfirmedTransactions()
     showToast('Transaction confirmed!', '', false)
   } catch (error) {
-    showToast('Error confirming transaction.', error.response?.data?.error || error.message, true)
+    showToast('Error confirming transaction.', describeError(error), true)
   }
 }
 
-const deleteTransactionHandler = async (transaction) => {
+const deleteTransactionHandler = async (transaction: Transaction) => {
   try {
     await transactionStore.deleteTransaction(transaction.id)
     await fetchUnconfirmedTransactions()
     showToast('Transaction deleted!', '', false)
   } catch (error) {
-    showToast('Error deleting transaction.', error.response?.data?.error || error.message, true)
+    showToast('Error deleting transaction.', describeError(error), true)
   }
 }
 </script>

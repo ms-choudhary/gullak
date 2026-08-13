@@ -4,24 +4,43 @@ import { DonutChart } from '@/components/ui/chart-donut';
 import { AreaChart } from '@/components/ui/chart-area'
 import { CurveType } from '@unovis/ts';
 import { showToast } from '@/utils/common'
+import { describeError } from '@/utils/errors'
 import DateRangePicker from '@/components/DateRangePicker.vue';
 import TransactionTable from '@/components/TransactionTable.vue';
-import Filter from '@/components/Filter.vue';
+import EnvelopeSelect from '@/components/EnvelopeSelect.vue';
 import SearchFilters from '@/components/SearchFilters.vue';
 import { useTransactionStore } from '@/stores/transactions';
+import type { DailySpending, Transaction } from '@/types/transaction';
 
-const isMounted = ref(false);
 const transactionStore = useTransactionStore();
-const categoriesData = ref([]);
-const dailyData = ref([]);
-const transactions = ref([]);
-const selectedEnvelopes = ref<string[]>([]);
+const categoriesData = ref<Array<{ name: string; total: number }>>([]);
+const dailyData = ref<DailySpending[]>([]);
+const transactions = ref<Transaction[]>([]);
 const availableEnvelopes = ref<string[]>([]);
+const selectedEnvelope = ref<string | null>(null);
 const selectedCategory = ref<string | null>(null);
+
+const formatDate = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const todayStr = () => formatDate(new Date());
+
+const startOfMonthStr = () => {
+    const now = new Date();
+    return formatDate(new Date(now.getFullYear(), now.getMonth(), 1));
+};
+
+const dateRange = ref({ start: startOfMonthStr(), end: todayStr() });
+
+// The API has no wildcard: an omitted `envelopes` param matches nothing, so
+// "All envelopes" has to enumerate every envelope by name.
+const envelopesForQuery = computed(() =>
+    selectedEnvelope.value === null ? availableEnvelopes.value : [selectedEnvelope.value]
+);
 
 // Client-side filters over the transactions already loaded in the table.
 const descriptionQuery = ref('');
-const sourceFilter = ref<string | null>(null); // null = every source
+const sourceFilter = ref<string | null>(null);
 
 const availableSources = computed(() =>
     [...new Set(transactions.value.map(t => t.source ?? ''))].sort()
@@ -38,96 +57,112 @@ const visibleTransactions = computed(() => {
 
 const isFiltering = computed(() => descriptionQuery.value.trim() !== '' || sourceFilter.value !== null);
 
-// A refetch can drop the source that is currently selected; fall back to showing everything.
 watch(availableSources, (sources) => {
     if (sourceFilter.value !== null && !sources.includes(sourceFilter.value)) {
         sourceFilter.value = null;
     }
 });
 
-const today = new Date();
-const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-const dateRange = ref({
-    start: `${startOfMonth.getFullYear()}-${String(startOfMonth.getMonth() + 1).padStart(2, '0')}-${String(startOfMonth.getDate()).padStart(2, '0')}`,  // Start of current month
-    end: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`  // Today
-});
-
-const fetchData = async () => {
-    try {
-        const [dailySpending, categories, transData] = await Promise.all([
-            transactionStore.fetchDailySpending(dateRange.value.start, dateRange.value.end, selectedEnvelopes.value),
-            transactionStore.fetchTopExpenseCategories(dateRange.value.start, dateRange.value.end, selectedEnvelopes.value),
-            transactionStore.fetchTransactions(true, dateRange.value.start, dateRange.value.end, selectedEnvelopes.value, selectedCategory.value)
-        ]);
-        dailyData.value = dailySpending.map(day => ({
-            transaction_date: day.transaction_date,
-            total_spent: day.total_spent
-        }));
-        categoriesData.value = categories.map(item => ({
-            name: item.category,
-            total: item.total_spent
-        }));
-        transactions.value = transData;
-    } catch (error) {
-        showToast('Error fetching data.', error.response?.data?.error || error.message, true);
-    }
+const fetchChartData = async () => {
+    const [dailySpending, categories] = await Promise.all([
+        transactionStore.fetchDailySpending(dateRange.value.start, dateRange.value.end, envelopesForQuery.value),
+        transactionStore.fetchTopExpenseCategories(dateRange.value.start, dateRange.value.end, envelopesForQuery.value)
+    ]);
+    dailyData.value = dailySpending.map(day => ({
+        transaction_date: day.transaction_date,
+        total_spent: day.total_spent
+    }));
+    categoriesData.value = categories.map(item => ({
+        name: item.category,
+        total: item.total_spent
+    }));
 }
 
 const fetchTableData = async () => {
+    transactions.value = await transactionStore.fetchTransactions(
+        true,
+        dateRange.value.start,
+        dateRange.value.end,
+        envelopesForQuery.value,
+        selectedCategory.value
+    );
+}
+
+const fetchData = async () => {
     try {
-        transactions.value = await transactionStore.fetchTransactions(
-            true, 
-            dateRange.value.start, 
-            dateRange.value.end, 
-            selectedEnvelopes.value, 
-            selectedCategory.value
-        );
+        await Promise.all([fetchChartData(), fetchTableData()]);
     } catch (error) {
-        showToast('Error fetching data.', error.response?.data?.error || error.message, true);
+        showToast('Error fetching data.', describeError(error), true);
     }
 }
 
-const saveTransactionHandler = async (transaction) => {
+const saveTransactionHandler = async (transaction: Transaction) => {
     try {
         await transactionStore.updateTransaction(transaction);
         showToast('Transaction updated successfully!', '', false);
+        // Editing a row is the only way an envelope comes into existence, so the
+        // list can change on every save.
+        await fetchAvailableEnvelopes();
         fetchData();
     } catch (error) {
-        showToast('Error updating transaction.', error.response?.data?.error || error.message, true);
+        showToast('Error updating transaction.', describeError(error), true);
     }
 }
 
-const deleteTransactionHandler = async (transaction) => {
+const deleteTransactionHandler = async (transaction: Transaction) => {
     try {
         await transactionStore.deleteTransaction(transaction.id);
         showToast('Transaction deleted successfully!', '', false);
+        await fetchAvailableEnvelopes();
         fetchData();
     } catch (error) {
-        showToast('Error deleting transaction.', error.response?.data?.error || error.message, true);
+        showToast('Error deleting transaction.', describeError(error), true);
     }
 }
 
 const fetchAvailableEnvelopes = async () => {
     try {
-        const envelopesArr = await transactionStore.fetchEnvelopes(dateRange.value.start, dateRange.value.end)
-				console.log(envelopesArr)
-        availableEnvelopes.value = envelopesArr
+        availableEnvelopes.value = await transactionStore.fetchEnvelopes();
     } catch (error) {
-        showToast('Error fetching data.', error.response?.data?.error || error.message, true);
+        showToast('Error fetching data.', describeError(error), true);
     }
 }
 
-// When the date range is updated, fetch new data.
-const handleDateRangeUpdate = (newDates) => {
+const handleDateRangeUpdate = (newDates: { start: string; end: string }) => {
     dateRange.value = { ...dateRange.value, start: newDates.start, end: newDates.end };
-    fetchAvailableEnvelopes();
     fetchData();
 };
 
-const handleEnvelopeFilterUpdate = (envelopes: string[]) => {
-    selectedEnvelopes.value = envelopes;
-    fetchData();
+const handleEnvelopeChange = async (envelope: string | null) => {
+    selectedEnvelope.value = envelope;
+
+    if (envelope === null) {
+        dateRange.value = { start: startOfMonthStr(), end: todayStr() };
+        await fetchData();
+        return;
+    }
+
+    try {
+        // No start_date means no lower bound, so this is the envelope's entire
+        // history, newest first: the last row is its first ever transaction.
+        const history = await transactionStore.fetchTransactions(
+            true,
+            null,
+            todayStr(),
+            [envelope],
+            selectedCategory.value
+        );
+
+        const earliest = history.length
+            ? history[history.length - 1].transaction_date.split('T')[0]
+            : startOfMonthStr();
+
+        dateRange.value = { start: earliest, end: todayStr() };
+        transactions.value = history;
+        await fetchChartData();
+    } catch (error) {
+        showToast('Error fetching data.', describeError(error), true);
+    }
 };
 
 const handleCategoryFilter = (category: string | null) => {
@@ -135,18 +170,27 @@ const handleCategoryFilter = (category: string | null) => {
     fetchTableData();
 };
 
-onMounted(() => {
-  fetchAvailableEnvelopes();
-  fetchData();
+watch(availableEnvelopes, (envelopes) => {
+    if (selectedEnvelope.value !== null && !envelopes.includes(selectedEnvelope.value)) {
+        handleEnvelopeChange(null);
+    }
+});
+
+onMounted(async () => {
+    await fetchAvailableEnvelopes();
+    await fetchData();
 });
 </script>
 
 <template>
     <section class="p-6">
-        <div class="flex flex-wrap items-center justify-between py-4">
-            <h1 class="text-2xl font-semibold text-gray-800 flex-1">Dashboard Overview</h1>
-            <Filter :envelopes="availableEnvelopes" @update:selectedEnvelopes="handleEnvelopeFilterUpdate"/>
-            <DateRangePicker v-model="dateRange" @update:dateRange="handleDateRangeUpdate" class="flex-initial" />
+        <div class="py-4 space-y-3">
+            <h1 class="text-2xl font-semibold text-gray-800">Dashboard Overview</h1>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <EnvelopeSelect :model-value="selectedEnvelope" :envelopes="availableEnvelopes"
+                    @update:model-value="handleEnvelopeChange" />
+                <DateRangePicker v-model="dateRange" @update:dateRange="handleDateRangeUpdate" />
+            </div>
         </div>
         <div class="charts mt-4 flex flex-wrap justify-center items-stretch">
             <div class="w-full md:w-1/2 p-2">
