@@ -25,6 +25,7 @@ export interface DailySpending {
 export interface NewTransactionInput {
   amount: number
   description: string
+  source: string
 }
 
 export interface DateRange {

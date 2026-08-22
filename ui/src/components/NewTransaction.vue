@@ -7,12 +7,25 @@ import { useTransactionStore } from '@/stores/transactions'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Loader } from 'lucide-vue-next'
 import TransactionTable from '@/components/TransactionTable.vue'
 import type { Transaction } from '@/types/transaction'
 
+// Cash first: it matches what the backend falls back to for a source-less transaction.
+const SOURCES = ['Cash', 'HDFC Credit Card', 'HDFC Debit Card', 'HDFC UPI', 'DCB Bank']
+
 const amount = ref('')
 const description = ref('')
+const source = ref(SOURCES[0])
 const transactionStore = useTransactionStore()
 const unconfirmedTransactions = ref<Transaction[]>([])
 
@@ -32,7 +45,8 @@ const handleSubmit = async () => {
   try {
     const transactionData = {
       amount: parseFloat(amount.value),
-      description: description.value
+      description: description.value,
+      source: source.value
     }
     await transactionStore.createTransaction(transactionData)
     await fetchUnconfirmedTransactions()
@@ -92,6 +106,29 @@ const deleteTransactionHandler = async (transaction: Transaction) => {
           maxlength="500"
           required
         />
+        <div class="w-full">
+          <label for="source" class="mb-1.5 block text-sm text-gray-400">Source</label>
+          <!-- text-base on mobile keeps iOS Safari from zooming in on tap -->
+          <Select v-model="source">
+            <SelectTrigger id="source" class="w-full text-base sm:text-sm" aria-label="Transaction source">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Source</SelectLabel>
+                <!-- Roomier rows on mobile give thumbs a usable tap target -->
+                <SelectItem
+                  v-for="option in SOURCES"
+                  :key="option"
+                  :value="option"
+                  class="py-2.5 text-base sm:py-1.5 sm:text-sm"
+                >
+                  {{ option }}
+                </SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
         <Button :disabled="transactionStore.isLoading || !amount || !description">
           <Loader v-if="transactionStore.isLoading" class="mr-2 h-4 w-4 animate-spin" />
           Save transaction

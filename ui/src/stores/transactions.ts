@@ -85,6 +85,7 @@ export const useTransactionStore = defineStore('transaction', () => {
       const payload = {
         amount: transactionData.amount,
         description: transactionData.description,
+        source: transactionData.source,
         confirm: false
       }
       await axios.post(TRANSACTIONS_BASE_URL, payload)
