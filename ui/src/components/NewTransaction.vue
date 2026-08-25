@@ -21,7 +21,7 @@ import TransactionTable from '@/components/TransactionTable.vue'
 import type { Transaction } from '@/types/transaction'
 
 // Cash first: it matches what the backend falls back to for a source-less transaction.
-const SOURCES = ['Cash', 'HDFC Credit Card', 'HDFC Debit Card', 'HDFC UPI', 'DCB Bank']
+const SOURCES = ['Cash', 'SBI Credit Card', 'HDFC Credit Card', 'HDFC Debit Card', 'HDFC UPI', 'DCB Bank']
 
 const amount = ref('')
 const description = ref('')
